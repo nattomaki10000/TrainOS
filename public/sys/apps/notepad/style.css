@@ -1,0 +1,7 @@
+:root { color-scheme: light dark; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; font: 14px system-ui, sans-serif; }
+.bar { display: flex; gap: 4px; padding: 4px; }
+#path { flex: 1; min-width: 0; }
+#editor { flex: 1; resize: none; border: 0; padding: 8px; font: 14px/1.5 ui-monospace, monospace; outline: none; }
+#status { padding: 2px 8px; font-size: 12px; opacity: .7; }

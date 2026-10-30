@@ -1,0 +1,10 @@
+{
+  "files": [
+    "sys/apps/notepad/app.json",
+    "sys/apps/notepad/index.html",
+    "sys/apps/notepad/style.css",
+    "sys/apps/notepad/main.js",
+    "sys/boot_loader/example.js",
+    "sys/boot_loader/redver.js"
+  ]
+}

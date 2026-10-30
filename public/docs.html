@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrainOS docs</title>
+<style>
+:root { color-scheme: light dark; --b: #8884; }
+body { font: 16px/1.7 system-ui, sans-serif; max-width: 760px; margin: 0 auto; padding: 16px; }
+h2 { margin-top: 2em; border-bottom: 1px solid var(--b); }
+pre { background: var(--b); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+code { background: var(--b); padding: 1px 4px; border-radius: 3px; }
+pre code { background: none; padding: 0; }
+</style>
+</head>
+<body>
+<p><a href="index.html">← TrainOS</a></p>
+<h1>改造・独自アプリ docs</h1>
+
+<h2 id="layout">フォルダ構成</h2>
+<pre><code>TrainOS/            選んだフォルダ（または Drive の TrainOS/）
+├─ sys/
+│  ├─ settings.json   設定（bootLoader, fileTypeHandlers ...）
+│  ├─ boot_loader/    起動画面。複数置ける
+│  ├─ components/     OS の挙動を差し替える JS
+│  └─ apps/           アプリ。置くだけで使える
+└─ usr/               desktop/ documents/ など</code></pre>
+
+<h2 id="apps">アプリを作る</h2>
+<p><b>単体HTML型</b>: <code>sys/apps/hello.html</code> を置くだけ。</p>
+<pre><code>&lt;pre id="out"&gt;読み込み中…&lt;/pre&gt;
+&lt;script&gt;
+TrainOS.fs.readText('/usr/documents/memo.txt')
+  .then(t =&gt; out.textContent = t)
+  .catch(e =&gt; out.textContent = e.message);
+&lt;/script&gt;</code></pre>
+<p><b>フォルダ型</b>（推奨）: <code>sys/apps/mytool/</code> に <code>index.html</code> と <code>app.json</code> など。CSS・JS・画像を分けられる。</p>
+<pre><code>{
+  "id": "mytool", "name": "My Tool",
+  "entry": "index.html",
+  "extensions": ["txt"],
+  "permissions": ["fs.read", "fs.write"]
+}</code></pre>
+<p>SDK（アプリ内の <code>window.TrainOS</code>）:</p>
+<pre><code>TrainOS.fs.readFile(p) / readText(p) / writeFile(p, data)
+TrainOS.fs.list(p) / tree(p) / mkdir(p) / remove(p)
+TrainOS.app.setTitle(t) / close() / openFile(p)
+TrainOS.app.onOpen(fn)   // 他から開かれたとき fn(path)</code></pre>
+<ul>
+  <li>権限: <code>fs.read</code> <code>fs.write</code> <code>app.launch</code>（<code>openFile</code> 用）。<code>app.json</code> で指定すると既定値を置き換える。</li>
+  <li>相対パスの <code>script</code> / <code>link</code> / <code>img</code> はアプリフォルダ内だけ解決される。実行時の <code>fetch</code> や <code>import()</code> では同フォルダを読めないので <code>TrainOS.fs</code> を使う。</li>
+  <li><code>alert</code> / <code>prompt</code> / <code>confirm</code> は使えない。</li>
+</ul>
+
+<h2 id="boot">起動画面（ブートローダー）</h2>
+<p><code>sys/boot_loader/名前.js</code> を置く。<code>example.js</code>（プログレスバー）と <code>redver.js</code>（赤いスピナー）が入っている。</p>
+<pre><code>TrainOSBoot.register({
+  name: 'mine',
+  start(el) { el.textContent = 'booting…'; },   // el = 起動画面の要素
+  progress({ value, label }) { /* 0-100 と表示文字 */ },
+  done() {}                                      // 省略可
+});</code></pre>
+<ul>
+  <li>切り替え: <code>settings.json</code> の <code>bootLoader</code> を名前にする。設定画面やターミナルからは <code>TrainOSBoot.use(kernel, '名前')</code>。</li>
+  <li>ログイン前は Drive を読めないため、選択中のローダーはブラウザにキャッシュされ、次回起動時に使われる。ファイルを編集したら、一度ログインして起動すると反映される。</li>
+  <li>初回や未設定のときは内蔵のシンプルな画面になる。</li>
+</ul>
+
+<h2 id="safe">セーフモード</h2>
+<p>URL に <code>?mode=safe</code> を付けると、<code>sys/components/</code> のコードとキャッシュ済みブートローダーを無視して、内蔵 UI で起動する。壊したコードの修復用。</p>
+
+<h2 id="storage">保存先</h2>
+<p>ローカルフォルダは Chrome / Edge（デスクトップ）のみ。選んだフォルダが TrainOS のルートになる。ブラウザを閉じるとフォルダの許可が切れることがあるので、<a href="index.html">index.html</a> から起動して許可し直す。</p>
+</body>
+</html>

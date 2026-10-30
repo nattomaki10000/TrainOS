@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrainOS</title>
+<style>
+:root { color-scheme: light dark; --b: #8884; }
+body { font: 16px/1.7 system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 16px; }
+code { background: var(--b); padding: 1px 4px; border-radius: 3px; }
+button { font: inherit; padding: 8px 14px; margin: 4px 4px 4px 0; cursor: pointer; }
+#msg { color: #c33; }
+</style>
+</head>
+<body>
+<h1>🚃 TrainOS</h1>
+<p>ブラウザの中で動く、超細分化 WebOS。電車が好きなので TrainOS。</p>
+<ul>
+  <li><b>ファイルがそのまま OS</b>: Google Drive かローカルのフォルダに <code>sys/</code> と <code>usr/</code> を置くだけ。</li>
+  <li><b>ネジ1本からハック</b>: <code>sys/components/</code> や <code>sys/boot_loader/</code> に JS を置くと、挙動や起動画面を差し替えられる。</li>
+  <li><b>アプリは置くだけ</b>: <code>sys/apps/</code> に HTML を入れたら使える。各アプリは iframe で隔離される。</li>
+  <li><b>壊れても戻れる</b>: URL に <code>?mode=safe</code> を付けると、カスタムコードを無視して起動する。</li>
+</ul>
+<p><a href="docs.html">改造・アプリ作りのドキュメント →</a></p>
+
+<h2>はじめる</h2>
+<p id="last" hidden>前回の保存先: <b id="lastName"></b> <button id="resume">そのまま起動</button></p>
+<p>保存先を選んで起動します。</p>
+<button id="local">📁 ローカルのフォルダで始める</button>
+<button id="drive">☁️ Google Drive で始める</button>
+<p id="msg"></p>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const go = () => { location.href = 'os.html'; };
+const say = (m) => { $('msg').textContent = m; };
+
+const idb = () => new Promise((ok, ng) => {
+  const r = indexedDB.open('trainos-boot', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('kv');
+  r.onsuccess = () => ok(r.result);
+  r.onerror = () => ng(r.error);
+});
+const kv = async (mode, fn) => {
+  const db = await idb();
+  return new Promise((ok, ng) => {
+    const t = db.transaction('kv', mode);
+    const q = fn(t.objectStore('kv'));
+    t.oncomplete = () => ok(q && q.result);
+    t.onerror = () => ng(t.error);
+  });
+};
+
+if (!('showDirectoryPicker' in window)) {
+  $('local').disabled = true;
+  say('ローカルフォルダは Chrome / Edge（デスクトップ）で使えます。');
+}
+
+async function pick() {
+  try {
+    const h = await showDirectoryPicker({ id: 'trainos', mode: 'readwrite' });
+    await kv('readwrite', (s) => s.put(h, 'rootHandle'));
+    localStorage.setItem('trainos.backend', 'local');
+    go();
+  } catch (e) {
+    if (e.name !== 'AbortError') say('失敗: ' + e.message);
+  }
+}
+
+async function resume() {
+  if (localStorage.getItem('trainos.backend') === 'local') {
+    try {
+      const h = await kv('readonly', (s) => s.get('rootHandle'));
+      if (!h || (await h.requestPermission({ mode: 'readwrite' })) !== 'granted') {
+        return say('フォルダへのアクセスが許可されませんでした。選び直してください。');
+      }
+    } catch (e) { return say('失敗: ' + e.message); }
+  }
+  go();
+}
+
+$('local').onclick = pick;
+$('drive').onclick = () => { localStorage.setItem('trainos.backend', 'drive'); go(); };
+$('resume').onclick = resume;
+
+const prev = localStorage.getItem('trainos.backend');
+if (prev) {
+  $('last').hidden = false;
+  $('lastName').textContent = prev === 'local' ? 'ローカルフォルダ' : 'Google Drive';
+}
+</script>
+</body>
+</html>

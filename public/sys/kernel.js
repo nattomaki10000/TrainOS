@@ -15,8 +15,13 @@
   const split = (np) => { const i = np.lastIndexOf('/'); return [np.slice(0, i) || '/', np.slice(i + 1)]; };
   const entry = (c) => ({ id: c.id, name: c.name, isDirectory: c.isDirectory, mimeType: c.mimeType, size: c.size, modifiedTime: c.modifiedTime });
 
+  const I = (n) => window.TrainOSIcon(n);
+
   const K = {
-    safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null,
+    version: '0.2.0',
+    safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
+    on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
+    emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },
 
     // ---- VFS: 読み取りはメモリ上のツリー（通信なし）。書き込みはバックエンドへ即時 ----
     find(path) {
@@ -55,11 +60,13 @@
       const node = { id: np, name, isDirectory: false, mimeType: blob.type, size: blob.size, modifiedTime: new Date().toISOString(), children: null };
       const i = d.children.findIndex((c) => c.name === name);
       if (i >= 0) d.children[i] = node; else d.children.push(node);
+      this.emit('fs', np);
     },
     async createDirectory(path) {
       const np = norm(path);
       await this.backend.mkdir(np);
       this._mkdirIdx(np);
+      this.emit('fs', np);
     },
     async deleteFile(path) {
       const np = norm(path);
@@ -68,6 +75,7 @@
       const [dir, name] = split(np);
       const d = this.find(dir);
       if (d) d.children = d.children.filter((c) => c.name !== name);
+      this.emit('fs', np);
     },
     async listDirectory(path) {
       const d = this.find(path);
@@ -78,6 +86,52 @@
       const n = this.find(path || '/');
       if (!n) throw new Error('見つかりません: ' + path);
       return n;
+    },
+
+    // フォルダも含めて移動（コピーしてから元を削除。名前の変更にも使う）
+    async move(from, to) {
+      const a = norm(from), b = norm(to);
+      if (a === '/' || b === a || b.startsWith(a + '/')) throw new Error('移動できません');
+      if (this.find(b)) throw new Error('すでに存在します: ' + b);
+      if (!this.find(a)) throw new Error('見つかりません: ' + a);
+      const copy = async (src, dst) => {
+        const n = this.find(src);
+        if (n.isDirectory) {
+          await this.createDirectory(dst);
+          for (const c of [...n.children]) await copy(src + '/' + c.name, dst + '/' + c.name);
+        } else {
+          await this.writeFile(dst, await this.readFile(src));
+        }
+      };
+      await copy(a, b);
+      await this.deleteFile(a);
+    },
+
+    async flush() { if (this.backend && this.backend.flush) await this.backend.flush(); },
+
+    // ---- 設定 ----
+    async setSettings(patch) {
+      if (!patch || typeof patch !== 'object') throw new Error('不正な設定');
+      const ok = ['theme', 'wallpaper', 'language', 'bootLoader', 'syncMinutes', 'desktop', 'fileTypeHandlers'];
+      for (const k of Object.keys(patch)) if (ok.includes(k)) this.settings[k] = patch[k];
+      if (patch.bootLoader) {
+        await window.TrainOSBoot.use(this, patch.bootLoader); // キャッシュ更新 + settings.json 保存
+      } else {
+        if ('bootLoader' in patch) localStorage.removeItem('trainos.bootLoader');
+        await this.writeFile('/sys/settings.json', JSON.stringify(this.settings, null, 2));
+      }
+      if (this.backend && 'delay' in this.backend) this.backend.delay = (this.settings.syncMinutes || 10) * 60000;
+      this.desktop.applySettings();
+      this.emit('settings');
+    },
+
+    async info() {
+      let bootLoaders = [];
+      try { bootLoaders = await window.TrainOSBoot.list(this); } catch (e) { /* フォルダが無いだけ */ }
+      return {
+        version: this.version, backend: localStorage.getItem('trainos.backend'),
+        user: (this.backend && this.backend.user) || null, bootLoaders, safe: this.safe,
+      };
     },
 
     // ---- アプリ ----
@@ -99,6 +153,29 @@
       }
     },
 
+    // Drive 版: ポップアップはクリック操作が必要なので、ログインボタンを出して待つ
+    _login() {
+      return new Promise((ok) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;background:#000c;color:#eee;font:14px system-ui';
+        const b = document.createElement('button');
+        b.style.cssText = 'font:inherit;padding:8px 16px;cursor:pointer';
+        b.innerHTML = I('google') + ' Google でログイン';
+        const msg = document.createElement('p');
+        const a = document.createElement('a');
+        a.href = 'index.html';
+        a.textContent = '保存先を選び直す';
+        a.style.color = '#8cf';
+        b.onclick = async () => {
+          b.disabled = true;
+          try { await this.backend.login(); d.remove(); ok(); }
+          catch (e) { msg.textContent = (e && e.message) || String(e); b.disabled = false; }
+        };
+        d.append(b, msg, a);
+        document.body.appendChild(d);
+      });
+    },
+
     // ---- 起動 ----
     async boot() {
       const B = window.TrainOSBoot;
@@ -107,9 +184,9 @@
       try {
         B.progress({ value: 5, label: 'ストレージを開いています…' });
         const kind = localStorage.getItem('trainos.backend');
-        if (kind === 'drive') throw new Error('Google Drive 版はまだ実装されていません。index.html でローカルフォルダを選んでください');
-        if (kind !== 'local') throw new Error('保存先が未選択です。index.html から起動してください');
-        this.backend = await window.TrainOSLocalBackend.open();
+        if (kind === 'drive') { this.backend = new window.TrainOSDriveBackend(); await this._login(); }
+        else if (kind === 'local') this.backend = await window.TrainOSLocalBackend.open();
+        else throw new Error('保存先が未選択です。index.html から起動してください');
 
         B.progress({ value: 20, label: 'フォルダを確認中…' });
         const S = window.TrainOSSkeleton;
@@ -122,6 +199,7 @@
         this.index = await this.backend.buildIndex();
         try { this.settings = JSON.parse(await (await this.readFile('/sys/settings.json')).text()); }
         catch (e) { console.warn('[kernel] settings.json を読めません。既定値で続行', e); this.settings = {}; }
+        if ('delay' in this.backend) this.backend.delay = (this.settings.syncMinutes || 10) * 60000;
 
         if (!this.safe) {
           if (this.settings.bootLoader) await B.cache(this, this.settings.bootLoader).catch(() => {});
@@ -133,6 +211,17 @@
         this.desktop = makeDesktop(this);
         this.apps = new window.TrainOSAppLoader(this);
         await this.apps.scan();
+
+        // sys/apps/ を書き換えたらアプリ一覧を自動で更新（置くだけで使える）
+        let t;
+        this.on('fs', (p) => {
+          if (!p.startsWith('/sys/apps')) return;
+          clearTimeout(t);
+          t = setTimeout(() => this.apps.scan().then(() => this.desktop.renderIcons()), 300);
+        });
+        window.addEventListener('beforeunload', (e) => {
+          if (this.backend && this.backend.pending && this.backend.pending.size) { e.preventDefault(); e.returnValue = ''; }
+        });
 
         this.desktop.render();
         B.progress({ value: 100, label: '完了' });
@@ -153,26 +242,29 @@
     p.textContent = '起動に失敗しました: ' + ((e && e.message) || e);
     const a = document.createElement('a');
     a.href = 'index.html';
-    a.textContent = '← index.html に戻る';
+    a.textContent = 'index.html に戻る';
     a.style.cssText = 'padding:0 24px;color:#8cf';
     el.append(p, a);
   }
 
-  // 最小のデスクトップ: ランチャー + ドラッグできるウィンドウ。
+  // デスクトップ: アイコン、ランチャー、ドラッグできるウィンドウ。
   // app_loader が createWindow(app) で中身の要素をもらい、attach(instance, host) でつなぐ。
   function makeDesktop(kernel) {
     const desk = document.getElementById('desktop');
     const bar = document.getElementById('bar');
+    const icons = document.createElement('div');
+    icons.id = 'icons';
+    desk.appendChild(icons);
     let z = 1, n = 0;
 
-    return {
+    const D = {
       createWindow(app) {
         const w = document.createElement('div');
         w.className = 'win';
         const { width, height } = app.manifest.window;
         w.style.cssText = 'left:' + (40 + (n % 8) * 28) + 'px;top:' + (30 + (n % 8) * 28) + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + (++z);
         n++;
-        w.innerHTML = '<div class="t"><span></span><button>×</button></div><div class="c"></div>';
+        w.innerHTML = '<div class="t"><span></span><button title="閉じる">' + I('xmark') + '</button></div><div class="c"></div>';
         w.addEventListener('pointerdown', () => { w.style.zIndex = ++z; }, true);
         desk.appendChild(w);
         const c = w.querySelector('.c');
@@ -189,7 +281,7 @@
         instance.onClose = () => w.remove();
         t.querySelector('button').onclick = () => kernel.apps.close(instance.id);
         t.onpointerdown = (e) => {
-          if (e.target.tagName === 'BUTTON') return;
+          if (e.target.closest('button')) return;
           const dx = e.clientX - w.offsetLeft, dy = e.clientY - w.offsetTop;
           t.setPointerCapture(e.pointerId);
           desk.classList.add('drag');
@@ -198,29 +290,91 @@
         };
       },
 
+      applySettings() {
+        const s = kernel.settings;
+        document.documentElement.style.colorScheme = s.theme === 'dark' ? 'dark' : 'light';
+        const w = s.wallpaper;
+        desk.style.backgroundImage = '';
+        desk.style.background = '';
+        if (w && w.startsWith('/')) {
+          kernel.readFile(w).then((b) => {
+            desk.style.background = 'center / cover url(' + URL.createObjectURL(b) + ')';
+          }).catch(() => {});
+        } else if (w) {
+          desk.style.background = w;
+        }
+      },
+
+      // デスクトップのアイコン: settings の shortcuts と /usr/desktop の中身
+      renderIcons() {
+        icons.replaceChildren();
+        const add = (name, icon, open) => {
+          const b = document.createElement('button');
+          b.className = 'ico';
+          b.innerHTML = I(icon) + '<span></span>';
+          b.lastChild.textContent = name;
+          b.ondblclick = () => open().catch((e) => alert(e.message));
+          icons.appendChild(b);
+        };
+        const sc = (kernel.settings.desktop && kernel.settings.desktop.shortcuts) || [];
+        for (const s of sc) {
+          if (s.app) {
+            const a = kernel.apps.registry.get(s.app);
+            if (a) add(s.name, a.manifest.icon, () => kernel.launchApp(s.app));
+          } else if (s.path) {
+            add(s.name, 'folder', () => kernel.openFile(s.path));
+          }
+        }
+        const d = kernel.find('/usr/desktop');
+        for (const c of (d && d.children) || []) {
+          add(c.name, c.isDirectory ? 'folder' : 'file', () => kernel.openFile('/usr/desktop/' + c.name));
+        }
+      },
+
       render() {
         const b = document.createElement('button');
-        b.textContent = '🚃 TrainOS';
+        b.innerHTML = I('train') + ' TrainOS';
         const m = document.createElement('div');
         m.id = 'menu';
         m.hidden = true;
         b.onclick = () => {
           m.replaceChildren(...kernel.apps.list().map((a) => {
             const i = document.createElement('button');
-            i.textContent = a.name;
+            i.innerHTML = I(a.icon) + '<span></span>';
+            i.lastChild.textContent = a.name;
             i.onclick = () => { m.hidden = true; kernel.apps.launch(a.id).catch((err) => alert(err.message)); };
             return i;
           }));
           m.hidden = !m.hidden;
         };
         bar.append(b, m);
+
+        if (kernel.backend.flush) {
+          const sb = document.createElement('button');
+          sb.title = 'Google Drive に保存';
+          const upd = (c) => { sb.innerHTML = I('floppy-disk') + (c ? ' ' + c : ''); sb.disabled = !c; };
+          upd(0);
+          kernel.backend.onPending = upd;
+          sb.onclick = () => kernel.flush().catch((e) => alert(e.message));
+          bar.append(sb);
+        }
         if (kernel.safe) {
           const s = document.createElement('span');
           s.textContent = 'セーフモード（components 無効）';
           bar.append(s);
         }
+        const v = document.createElement('span');
+        v.style.marginLeft = 'auto';
+        v.textContent = 'v' + kernel.version;
+        bar.append(v);
+
+        D.applySettings();
+        D.renderIcons();
+        kernel.on('fs', (p) => { if (p.startsWith('/usr/desktop')) D.renderIcons(); });
+        kernel.on('settings', () => D.renderIcons());
       },
     };
+    return D;
   }
 
   window.TrainOSKernel = K;

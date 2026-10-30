@@ -19,6 +19,7 @@
 
   const DEFAULT_MANIFEST = {
     version: '0.0.0',
+    icon: 'cube',
     entry: 'index.html',
     extensions: [],
     permissions: ['fs.read', 'fs.write'],
@@ -61,6 +62,7 @@
     m.id = /^[\w-]+$/.test(String(m.id || '')) ? String(m.id) : fallbackId;
     m.name = String(m.name || m.id);
     m.entry = String(m.entry || DEFAULT_MANIFEST.entry);
+    m.icon = String(m.icon || 'cube');
     m.extensions = (Array.isArray(m.extensions) ? m.extensions : [])
       .map((e) => String(e).replace(/^\./, '').toLowerCase());
     m.permissions = Array.isArray(m.permissions)
@@ -98,6 +100,15 @@
     });
 
     window.TrainOS = {
+      icon: (n) => {
+        const i = (window.__TI__ || {})[n];
+        return i ? '<svg viewBox="' + i.vb + '" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="' + i.d + '"/></svg>' : '';
+      },
+      sys: {
+        getSettings: () => call('getSettings'),
+        setSettings: (patch) => call('setSettings', patch),
+        flush: () => call('flush'),
+      },
       fs: {
         readFile: (p) => call('readFile', p),
         readText: async (p) => (await call('readFile', p)).text(),
@@ -106,6 +117,7 @@
         tree: (p) => call('getFileTree', p),
         mkdir: (p) => call('createDirectory', p),
         remove: (p) => call('deleteFile', p),
+        move: (a, b) => call('moveFile', a, b),
       },
       app: {
         setTitle: (t) => call('setTitle', t),
@@ -143,6 +155,10 @@
         openFile:        { perm: 'app.launch', fn: (i, p) => this.openFile(p).then(() => null) },
         setTitle:        { perm: null,         fn: (i, t) => { i.title = String(t); if (i.onTitleChange) i.onTitleChange(i.title); } },
         close:           { perm: null,         fn: (i) => this.close(i.id) },
+        moveFile:        { perm: 'fs.write',        fn: (i, a, b) => kernel.move(a, b) },
+        getSettings:     { perm: 'system.settings', fn: async () => ({ settings: kernel.settings, info: await kernel.info() }) },
+        setSettings:     { perm: 'system.settings', fn: (i, p) => kernel.setSettings(p).then(() => null) },
+        flush:           { perm: 'system.settings', fn: () => kernel.flush().then(() => null) },
       };
     }
 
@@ -204,6 +220,8 @@
     }
 
     async openFile(path) {
+      const node = this.kernel.find && this.kernel.find(path);
+      if (node && node.isDirectory) return this.launch('explorer', { openPath: path }); // フォルダはエクスプローラーで開く
       const id = this.resolveHandler(path);
       if (!id) throw new Error('このファイルを開けるアプリがありません: ' + path);
       return this.launch(id, { openPath: path });
@@ -288,6 +306,10 @@
         if (!p) continue;
         el.setAttribute('src', await blobToDataUrl(await this.kernel.readFile(p), p));
       }
+
+      const ic = doc.createElement('script');
+      ic.textContent = 'window.__TI__=' + JSON.stringify(window.TrainOSIcons || {}) + ';';
+      doc.head.insertBefore(ic, doc.head.firstChild);
 
       const sdk = doc.createElement('script');
       sdk.textContent = '(' + sdkMain.toString() + ')();';

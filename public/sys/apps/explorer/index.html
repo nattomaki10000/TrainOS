@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>エクスプローラー</title>
+<style>
+:root { color-scheme: light dark; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; font: 13px system-ui, sans-serif; }
+button { font: inherit; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.bar { display: flex; gap: 4px; padding: 4px; border-bottom: 1px solid #8886; }
+.bar input { flex: 1; min-width: 0; font: inherit; }
+.main { flex: 1; display: flex; min-height: 0; }
+#tree { width: 150px; overflow: auto; border-right: 1px solid #8886; padding: 4px; }
+#tree div { white-space: nowrap; }
+#tree button, .row { border: 0; background: none; color: inherit; }
+#tree button { padding: 1px 2px; }
+#list { flex: 1; overflow: auto; padding: 4px; }
+.row { display: flex; width: 100%; text-align: left; padding: 3px 6px; border-radius: 4px; }
+.row.sel { background: #4a90e255; }
+.row .sz { margin-left: auto; opacity: .6; }
+#msg { padding: 3px 8px; min-height: 1.5em; border-top: 1px solid #8886; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button id="up" title="上へ"></button>
+  <input id="path" spellcheck="false">
+  <button id="mkd" title="新しいフォルダ"></button>
+  <button id="mkf" title="新しいファイル"></button>
+  <button id="ren" title="名前の変更"></button>
+  <button id="del" title="削除"></button>
+  <button id="ref" title="更新"></button>
+</div>
+<div class="main"><div id="tree"></div><div id="list"></div></div>
+<div id="msg"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const ic = TrainOS.icon;
+const join = (a, b) => (a === '/' ? '' : a) + '/' + b;
+const fmt = (n) => (n == null ? '' : n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB');
+let cwd = '/', sel = null;
+
+const say = (m) => { $('msg').textContent = m || ''; };
+
+// 入力欄をメッセージ欄に出す（prompt は使えないため）
+const ask = (label, v) => new Promise((ok) => {
+  const m = $('msg');
+  m.textContent = label + ' ';
+  const i = document.createElement('input');
+  i.value = v || '';
+  m.append(i);
+  i.focus();
+  i.select();
+  i.onkeydown = (e) => {
+    if (e.key === 'Enter') { m.textContent = ''; ok(i.value.trim()); }
+    else if (e.key === 'Escape') { m.textContent = ''; ok(null); }
+  };
+});
+
+async function drawTree() {
+  const root = await TrainOS.fs.tree('/');
+  const t = $('tree');
+  t.replaceChildren();
+  (function walk(n, p, d) {
+    const row = document.createElement('div');
+    row.style.paddingLeft = d * 10 + 'px';
+    const b = document.createElement('button');
+    b.innerHTML = ic('folder');
+    b.append(' ' + (p === '/' ? '/' : n.name));
+    b.onclick = () => load(p);
+    row.append(b);
+    t.append(row);
+    for (const c of n.children || []) if (c.isDirectory) walk(c, join(p, c.name), d + 1);
+  })(root, '/', 0);
+}
+
+const open = (it) => (it.isDirectory
+  ? load(join(cwd, it.name))
+  : TrainOS.app.openFile(join(cwd, it.name)).catch((e) => say(e.message)));
+
+async function load(p) {
+  try {
+    const items = await TrainOS.fs.list(p);
+    cwd = p; sel = null;
+    $('path').value = p;
+    TrainOS.app.setTitle(p);
+    items.sort((a, b) => (b.isDirectory - a.isDirectory) || a.name.localeCompare(b.name));
+    const l = $('list');
+    l.replaceChildren();
+    for (const it of items) {
+      const r = document.createElement('button');
+      r.className = 'row';
+      r.innerHTML = ic(it.isDirectory ? 'folder' : 'file');
+      const nm = document.createElement('span');
+      nm.textContent = ' ' + it.name;
+      r.append(nm);
+      if (!it.isDirectory) {
+        const s = document.createElement('span');
+        s.className = 'sz';
+        s.textContent = fmt(it.size);
+        r.append(s);
+      }
+      r.onclick = () => { sel = it.name; [...l.children].forEach((c) => c.classList.toggle('sel', c === r)); };
+      r.ondblclick = () => open(it);
+      l.append(r);
+    }
+    say(items.length + ' 件');
+  } catch (e) { say(e.message); }
+}
+
+const act = (fn) => async () => {
+  try { await fn(); await load(cwd); await drawTree(); } catch (e) { say(e.message); }
+};
+$('mkd').onclick = act(async () => { const n = await ask('フォルダ名:'); if (n) await TrainOS.fs.mkdir(join(cwd, n)); });
+$('mkf').onclick = act(async () => { const n = await ask('ファイル名:'); if (n) await TrainOS.fs.writeFile(join(cwd, n), ''); });
+$('ren').onclick = act(async () => {
+  if (!sel) return say('選択してください');
+  const n = await ask('新しい名前:', sel);
+  if (n && n !== sel) await TrainOS.fs.move(join(cwd, sel), join(cwd, n));
+});
+$('del').onclick = act(async () => {
+  if (!sel) return say('選択してください');
+  if ((await ask(sel + ' を削除するには y を入力:')) === 'y') await TrainOS.fs.remove(join(cwd, sel));
+});
+$('ref').onclick = act(async () => {});
+$('up').onclick = () => load(cwd.replace(/\/[^/]*$/, '') || '/');
+$('path').onkeydown = (e) => { if (e.key === 'Enter') load($('path').value.trim() || '/'); };
+
+for (const [id, name] of [['up', 'arrow-up'], ['mkd', 'folder-plus'], ['mkf', 'file-circle-plus'], ['ren', 'pen'], ['del', 'trash'], ['ref', 'rotate']]) {
+  $(id).innerHTML = ic(name);
+}
+
+let opened = false;
+TrainOS.app.onOpen((p) => { opened = true; load(p); });
+drawTree();
+setTimeout(() => { if (!opened) load('/usr'); }, 100);
+</script>
+</body>
+</html>

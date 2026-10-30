@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>設定</title>
+<style>
+:root { color-scheme: light dark; }
+body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; display: grid; gap: 12px; align-content: start; }
+fieldset { border: 1px solid #8886; border-radius: 6px; display: grid; gap: 8px; }
+label { display: flex; gap: 8px; align-items: center; }
+input, select, button { font: inherit; }
+#st { opacity: .7; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<fieldset><legend>起動画面</legend>
+  <label><select id="boot"></select></label>
+</fieldset>
+<fieldset><legend>表示</legend>
+  <label>テーマ
+    <select id="theme"><option value="light">ライト</option><option value="dark">ダーク</option></select>
+  </label>
+  <label>壁紙 <input id="wp" size="26" placeholder="#245 または /usr/documents/bg.png"><button id="wpb">適用</button></label>
+</fieldset>
+<fieldset id="sync" hidden><legend>Google Drive</legend>
+  <label>自動保存の間隔 <input id="min" type="number" min="1" max="120" style="width:5em"> 分</label>
+</fieldset>
+<fieldset><legend>情報</legend><div id="info"></div></fieldset>
+<div id="st"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const say = (m) => { $('st').textContent = m; };
+const set = async (p) => {
+  try { await TrainOS.sys.setSettings(p); say('保存しました'); }
+  catch (e) { say('失敗: ' + e.message); }
+};
+(async () => {
+  TrainOS.app.setTitle('設定');
+  const { settings: s, info } = await TrainOS.sys.getSettings();
+  $('boot').add(new Option('内蔵（シンプル）', ''));
+  for (const n of info.bootLoaders) $('boot').add(new Option(n, n));
+  $('boot').value = s.bootLoader || '';
+  $('theme').value = s.theme || 'light';
+  $('wp').value = s.wallpaper || '';
+  if (info.backend === 'drive') { $('sync').hidden = false; $('min').value = s.syncMinutes || 10; }
+  $('info').textContent = 'TrainOS ' + info.version + ' / 保存先: ' +
+    (info.backend === 'drive' ? 'Google Drive' + (info.user ? '（' + info.user + '）' : '') : 'ローカルフォルダ') +
+    (info.safe ? ' / セーフモード' : '');
+  $('boot').onchange = () => set({ bootLoader: $('boot').value || null });
+  $('theme').onchange = () => set({ theme: $('theme').value });
+  $('wpb').onclick = () => set({ wallpaper: $('wp').value.trim() || null });
+  $('min').onchange = () => set({ syncMinutes: Math.max(1, +$('min').value || 10) });
+})().catch((e) => say('読み込み失敗: ' + e.message));
+</script>
+</body>
+</html>

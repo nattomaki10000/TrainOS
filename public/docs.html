@@ -14,7 +14,7 @@ pre code { background: none; padding: 0; }
 </style>
 </head>
 <body>
-<p><a href="index.html">← TrainOS</a></p>
+<p><a href="index.html">TrainOS のトップへ</a></p>
 <h1>改造・独自アプリ docs</h1>
 
 <h2 id="layout">フォルダ構成</h2>
@@ -45,9 +45,12 @@ TrainOS.fs.readText('/usr/documents/memo.txt')
 <pre><code>TrainOS.fs.readFile(p) / readText(p) / writeFile(p, data)
 TrainOS.fs.list(p) / tree(p) / mkdir(p) / remove(p)
 TrainOS.app.setTitle(t) / close() / openFile(p)
-TrainOS.app.onOpen(fn)   // 他から開かれたとき fn(path)</code></pre>
+TrainOS.app.onOpen(fn)   // 他から開かれたとき fn(path)
+TrainOS.fs.move(from, to)
+TrainOS.sys.getSettings() / setSettings(patch) / flush()   // system.settings が必要
+TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <ul>
-  <li>権限: <code>fs.read</code> <code>fs.write</code> <code>app.launch</code>（<code>openFile</code> 用）。<code>app.json</code> で指定すると既定値を置き換える。</li>
+  <li>権限: <code>fs.read</code> <code>fs.write</code> <code>app.launch</code>（<code>openFile</code> 用）、<code>system.settings</code>（設定の読み書き）。<code>app.json</code> で指定すると既定値を置き換える。</li>
   <li>相対パスの <code>script</code> / <code>link</code> / <code>img</code> はアプリフォルダ内だけ解決される。実行時の <code>fetch</code> や <code>import()</code> では同フォルダを読めないので <code>TrainOS.fs</code> を使う。</li>
   <li><code>alert</code> / <code>prompt</code> / <code>confirm</code> は使えない。</li>
 </ul>
@@ -71,5 +74,14 @@ TrainOS.app.onOpen(fn)   // 他から開かれたとき fn(path)</code></pre>
 
 <h2 id="storage">保存先</h2>
 <p>ローカルフォルダは Chrome / Edge（デスクトップ）のみ。選んだフォルダが TrainOS のルートになる。ブラウザを閉じるとフォルダの許可が切れることがあるので、<a href="index.html">index.html</a> から起動して許可し直す。</p>
+<h2 id="drive">Google Drive 版のセットアップ</h2>
+<ol>
+  <li>Firebase でプロジェクトを作り、Authentication で Google ログインを有効にする。配信元のドメインを承認済みドメインに追加する。</li>
+  <li>同じプロジェクトで Google Drive API を有効にする。</li>
+  <li><code>firebase-config.js</code> に Web アプリの設定値を入れる。</li>
+  <li>起動時に「Google でログイン」を押す。Drive のフルアクセス権限を求められる（確認前のアプリは警告が出る。自分用ならテストユーザーに自分を追加する）。</li>
+</ol>
+<p>Drive の <code>TrainOS/</code> フォルダがルートになる。書き込みはまとめて送られるので、タスクバーの保存ボタンで今すぐ送れる。</p>
+<p>アイコンは Font Awesome Free（CC BY 4.0）。</p>
 </body>
 </html>

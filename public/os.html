@@ -10,6 +10,14 @@ html, body { height: 100%; margin: 0; overflow: hidden; font: 14px system-ui, sa
 #desktop { position: fixed; inset: 0 0 32px 0; background: #245; }
 #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 32px; display: flex; gap: 8px; align-items: center; padding: 0 4px; background: #222; color: #eee; }
 #menu { position: absolute; left: 4px; bottom: 34px; display: flex; flex-direction: column; gap: 2px; background: #222; padding: 4px; border-radius: 6px; }
+svg { vertical-align: -.125em; }
+#bar button { display: inline-flex; align-items: center; gap: 6px; background: #444; color: #eee; border: 0; border-radius: 4px; padding: 4px 8px; font: inherit; cursor: pointer; }
+#bar button:disabled { opacity: .4; cursor: default; }
+#icons { position: absolute; inset: 0; z-index: 0; padding: 8px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(auto-fill, 84px); grid-auto-columns: 84px; gap: 4px; align-content: start; justify-content: start; pointer-events: none; }
+.ico { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; color: #fff; font: 12px system-ui; padding: 6px; border-radius: 6px; cursor: pointer; overflow: hidden; word-break: break-all; }
+.ico svg { font-size: 34px; }
+.ico:hover, .ico:focus { background: #fff3; outline: none; }
+.win .t button { display: inline-flex; background: none; border: 0; color: #fff; cursor: pointer; padding: 2px 6px; }
 #menu[hidden] { display: none; }
 .win { position: absolute; display: flex; flex-direction: column; min-width: 200px; min-height: 120px; resize: both; overflow: hidden; background: Canvas; color: CanvasText; border: 1px solid #888; border-radius: 6px; box-shadow: 0 4px 16px #0006; }
 .win .t { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 2px 8px; background: #335; color: #fff; cursor: move; user-select: none; touch-action: none; }
@@ -21,10 +29,13 @@ html, body { height: 100%; margin: 0; overflow: hidden; font: 14px system-ui, sa
 <div id="boot-screen"></div>
 <div id="desktop"></div>
 <div id="bar"></div>
+<script src="sys/icons.js"></script>
 <script src="sys/boot.js"></script>
 <script src="sys/backend_local.js"></script>
+<script src="sys/backend_drive.js"></script>
 <script src="sys/skeleton.js"></script>
 <script src="sys/app_loader.js"></script>
+<script src="firebase-config.js"></script>
 <script src="sys/kernel.js"></script>
 <script>TrainOSKernel.boot();</script>
 </body>

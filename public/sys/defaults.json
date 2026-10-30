@@ -4,6 +4,12 @@
     "sys/apps/notepad/index.html",
     "sys/apps/notepad/style.css",
     "sys/apps/notepad/main.js",
+    "sys/apps/explorer/app.json",
+    "sys/apps/explorer/index.html",
+    "sys/apps/terminal/app.json",
+    "sys/apps/terminal/index.html",
+    "sys/apps/settings/app.json",
+    "sys/apps/settings/index.html",
     "sys/boot_loader/example.js",
     "sys/boot_loader/redver.js"
   ]

@@ -3,8 +3,19 @@
   "name": "メモ帳",
   "version": "0.1.0",
   "entry": "index.html",
-  "extensions": ["txt", "md", "log"],
-  "permissions": ["fs.read", "fs.write"],
+  "extensions": [
+    "txt",
+    "md",
+    "log"
+  ],
+  "permissions": [
+    "fs.read",
+    "fs.write"
+  ],
   "singleInstance": false,
-  "window": { "width": 600, "height": 420 }
+  "window": {
+    "width": 600,
+    "height": 420
+  },
+  "icon": "file-lines"
 }

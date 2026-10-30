@@ -17,12 +17,16 @@
     theme: 'light',
     wallpaper: null,
     language: 'ja',
+    syncMinutes: 10,
     bootLoader: null,
     fileTypeHandlers: {},
     desktop: {
       shortcuts: [
-        { name: 'Documents', path: '/usr/documents' },
-        { name: 'Desktop', path: '/usr/desktop' },
+        { name: 'エクスプローラー', app: 'explorer' },
+        { name: 'ターミナル', app: 'terminal' },
+        { name: 'メモ帳', app: 'notepad' },
+        { name: '設定', app: 'settings' },
+        { name: 'ドキュメント', path: '/usr/documents' },
       ],
     },
   };
@@ -49,7 +53,7 @@
       if (have.has('/' + path)) continue;
       const r = await fetch(base + path);
       if (!r.ok) throw new Error('取得できません: ' + path);
-      await backend.writeFile('/' + path, await r.blob());
+      await backend.writeFile('/' + path, await r.blob(), { immediate: true });
       copied++;
     }
     return copied;
@@ -70,7 +74,8 @@
     if (!hasSettings) {
       await backend.writeFile(
         '/sys/settings.json',
-        new Blob([JSON.stringify(DEFAULT_SETTINGS, null, 2)], { type: 'application/json' })
+        new Blob([JSON.stringify(DEFAULT_SETTINGS, null, 2)], { type: 'application/json' }),
+        { immediate: true }
       );
     }
     if (!sys && !(opts && opts.seed === false)) {

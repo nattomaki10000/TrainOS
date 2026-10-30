@@ -1,0 +1,10 @@
+{
+  "id": "terminal",
+  "name": "ターミナル",
+  "version": "0.1.0",
+  "icon": "terminal",
+  "entry": "index.html",
+  "permissions": ["fs.read", "fs.write", "app.launch", "system.settings"],
+  "singleInstance": false,
+  "window": { "width": 640, "height": 400 }
+}

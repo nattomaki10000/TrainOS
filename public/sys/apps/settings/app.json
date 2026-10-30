@@ -1,0 +1,10 @@
+{
+  "id": "settings",
+  "name": "設定",
+  "version": "0.1.0",
+  "icon": "gear",
+  "entry": "index.html",
+  "permissions": ["system.settings"],
+  "singleInstance": true,
+  "window": { "width": 460, "height": 400 }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "explorer",
+  "name": "エクスプローラー",
+  "version": "0.1.0",
+  "icon": "folder-open",
+  "entry": "index.html",
+  "permissions": ["fs.read", "fs.write", "app.launch"],
+  "singleInstance": false,
+  "window": { "width": 660, "height": 420 }
+}

@@ -18,7 +18,7 @@
   const I = (n) => window.TrainOSIcon(n);
 
   const K = {
-    version: '0.2.0',
+    version: '0.2.1',
     safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
     on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
     emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },
@@ -105,6 +105,11 @@
       };
       await copy(a, b);
       await this.deleteFile(a);
+    },
+
+    // 足りない標準ファイルだけコピー（上書きしない）。kernel 経由で書くので一覧にも反映される
+    restoreDefaults() {
+      return window.TrainOSSkeleton.seedDefaults(this.backend, { tree: this.index, write: (p, b) => this.writeFile(p, b) });
     },
 
     async flush() { if (this.backend && this.backend.flush) await this.backend.flush(); },
@@ -200,6 +205,16 @@
         try { this.settings = JSON.parse(await (await this.readFile('/sys/settings.json')).text()); }
         catch (e) { console.warn('[kernel] settings.json を読めません。既定値で続行', e); this.settings = {}; }
         if ('delay' in this.backend) this.backend.delay = (this.settings.syncMinutes || 10) * 60000;
+
+        // 新しいバージョンで標準アプリが増えたとき・コピーが途中で失敗したときに、不足分を補う
+        if (this.settings.seeded !== this.version) {
+          try {
+            B.progress({ value: 48, label: '標準ファイルを確認中…' });
+            await this.restoreDefaults();
+            this.settings.seeded = this.version;
+            await this.writeFile('/sys/settings.json', JSON.stringify(this.settings, null, 2));
+          } catch (e) { console.warn('[kernel] 標準ファイルの確認に失敗（次回また試します）', e); }
+        }
 
         if (!this.safe) {
           if (this.settings.bootLoader) await B.cache(this, this.settings.bootLoader).catch(() => {});

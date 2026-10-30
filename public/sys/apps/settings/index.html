@@ -25,6 +25,9 @@ input, select, button { font: inherit; }
 <fieldset id="sync" hidden><legend>Google Drive</legend>
   <label>自動保存の間隔 <input id="min" type="number" min="1" max="120" style="width:5em"> 分</label>
 </fieldset>
+<fieldset><legend>標準アプリ</legend>
+  <label><button id="rst">足りない標準ファイルを復元</button></label>
+</fieldset>
 <fieldset><legend>情報</legend><div id="info"></div></fieldset>
 <div id="st"></div>
 <script>
@@ -32,6 +35,10 @@ const $ = (id) => document.getElementById(id);
 const say = (m) => { $('st').textContent = m; };
 const set = async (p) => {
   try { await TrainOS.sys.setSettings(p); say('保存しました'); }
+  catch (e) { say('失敗: ' + e.message); }
+};
+$('rst').onclick = async () => {
+  try { say((await TrainOS.sys.restoreDefaults()) + ' 個のファイルを復元しました'); }
   catch (e) { say('失敗: ' + e.message); }
 };
 (async () => {

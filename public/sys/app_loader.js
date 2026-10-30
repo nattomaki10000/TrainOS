@@ -108,6 +108,7 @@
         getSettings: () => call('getSettings'),
         setSettings: (patch) => call('setSettings', patch),
         flush: () => call('flush'),
+        restoreDefaults: () => call('restoreDefaults'),
       },
       fs: {
         readFile: (p) => call('readFile', p),
@@ -159,6 +160,7 @@
         getSettings:     { perm: 'system.settings', fn: async () => ({ settings: kernel.settings, info: await kernel.info() }) },
         setSettings:     { perm: 'system.settings', fn: (i, p) => kernel.setSettings(p).then(() => null) },
         flush:           { perm: 'system.settings', fn: () => kernel.flush().then(() => null) },
+        restoreDefaults: { perm: 'system.settings', fn: () => kernel.restoreDefaults() },
       };
     }
 

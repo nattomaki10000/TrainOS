@@ -46,14 +46,16 @@
     const res = await fetch(base + 'sys/defaults.json');
     if (!res.ok) throw new Error('defaults.json を取得できません: ' + res.status);
     const list = (await res.json()).files || [];
-    const have = flatten(await backend.buildIndex(), '', new Set());
+    // すでにある一覧（opts.tree）を使う。ここで取り直すと、作成直後のフォルダが一覧に無くて重複作成される
+    const have = flatten((opts && opts.tree) || await backend.buildIndex(), '', new Set());
+    const put = (opts && opts.write) || ((p, b) => backend.writeFile(p, b, { immediate: true }));
     let copied = 0;
     for (const path of list) {
       if (!/^(sys|usr)\/[\w./-]+$/.test(path) || path.includes('..')) continue;
       if (have.has('/' + path)) continue;
       const r = await fetch(base + path);
       if (!r.ok) throw new Error('取得できません: ' + path);
-      await backend.writeFile('/' + path, await r.blob(), { immediate: true });
+      await put('/' + path, await r.blob());
       copied++;
     }
     return copied;
@@ -79,7 +81,7 @@
       );
     }
     if (!sys && !(opts && opts.seed === false)) {
-      try { await seedDefaults(backend, opts); }
+      try { await seedDefaults(backend, Object.assign({}, opts, { tree: root })); }
       catch (e) { console.warn('[skeleton] 標準ファイルのコピーに失敗（オフライン？）', e); }
     }
     return sys && hasSettings ? 'ok' : 'created';

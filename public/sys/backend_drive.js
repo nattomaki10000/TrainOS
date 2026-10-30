@@ -32,6 +32,7 @@
       this.ids = new Map();      // パス -> { id, dir }
       this.rootId = null;
       this.pending = new Map();  // パス -> Blob（Drive へ未送信）
+      this.mine = new Map();     // このタブで作ったもの。一覧への反映が遅れても見えるようにする
       this.timer = null;
       this.delay = 600000;
       this.onPending = null;     // (件数) => void
@@ -121,6 +122,19 @@
         }
         level = next;
       }
+      // 作成直後は Drive の一覧に出るまで遅れることがあるので、このタブで作ったものを補う
+      for (const [p, e] of [...this.mine].sort((a, b) => a[0].length - b[0].length)) {
+        if (this.ids.has(p)) continue;
+        const i = p.lastIndexOf('/');
+        let par = root;
+        for (const s of parts(p.slice(0, i))) par = par && (par.children || []).find((c) => c.name === s);
+        if (!par || !par.isDirectory || par.children.some((c) => c.name === p.slice(i + 1))) continue;
+        par.children.push({
+          id: p, name: p.slice(i + 1), isDirectory: e.dir, mimeType: e.dir ? 'inode/directory' : 'application/octet-stream',
+          size: 0, modifiedTime: new Date().toISOString(), children: e.dir ? [] : null,
+        });
+        this.ids.set(p, e);
+      }
       return root;
     }
 
@@ -136,7 +150,11 @@
       for (const s of parts(path)) {
         const parent = this.ids.get(p || '/').id;
         p += '/' + s;
-        if (!this.ids.has(p)) this.ids.set(p, { id: await this._create(s, parent, true), dir: true });
+        if (!this.ids.has(p)) {
+          const e = { id: await this._create(s, parent, true), dir: true };
+          this.ids.set(p, e);
+          this.mine.set(p, e);
+        }
       }
     }
 
@@ -146,7 +164,7 @@
       const dir = '/' + ps.join('/');
       await this.mkdir(dir);
       let e = this.ids.get(path);
-      if (!e) { e = { id: await this._create(name, this.ids.get(dir).id, false), dir: false }; this.ids.set(path, e); }
+      if (!e) { e = { id: await this._create(name, this.ids.get(dir).id, false), dir: false }; this.ids.set(path, e); this.mine.set(path, e); }
       await this._f(UPLOAD + e.id + '?uploadType=media', {
         method: 'PATCH', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob,
       });
@@ -174,7 +192,9 @@
       const e = this.ids.get(path);
       if (e) {
         await this._f(API + 'files/' + e.id, { method: 'DELETE' });
-        for (const k of [...this.ids.keys()]) if (k === path || k.startsWith(path + '/')) this.ids.delete(k);
+        for (const k of [...this.ids.keys()]) {
+          if (k === path || k.startsWith(path + '/')) { this.ids.delete(k); this.mine.delete(k); }
+        }
       }
       this._notify();
     }

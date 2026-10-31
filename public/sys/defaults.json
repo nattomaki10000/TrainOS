@@ -1,16 +1,99 @@
 {
-  "files": [
-    "sys/apps/notepad/app.json",
-    "sys/apps/notepad/index.html",
-    "sys/apps/notepad/style.css",
-    "sys/apps/notepad/main.js",
-    "sys/apps/explorer/app.json",
-    "sys/apps/explorer/index.html",
-    "sys/apps/terminal/app.json",
-    "sys/apps/terminal/index.html",
-    "sys/apps/settings/app.json",
-    "sys/apps/settings/index.html",
-    "sys/boot_loader/example.js",
-    "sys/boot_loader/redver.js"
-  ]
+  "version": "0.3.0",
+  "files": {
+    "sys/apps/explorer/app.json": {
+      "v": "0.2.0",
+      "h": "14816c74e28e50db34dbeb4bec81f230594dcb156bbb70ae4390d382e3081625",
+      "p": []
+    },
+    "sys/apps/explorer/index.html": {
+      "v": "0.2.0",
+      "h": "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29",
+      "p": []
+    },
+    "sys/apps/notepad/app.json": {
+      "v": "0.2.0",
+      "h": "1f7339756654f23ba43e690ac3fb4a8210b1fd8a124048849bf1c024e30520ca",
+      "p": [
+        "0489666dd419dd3e9f90997f11fae7a0f3d2e618f5b2291e8610cb80b436aab4"
+      ]
+    },
+    "sys/apps/notepad/index.html": {
+      "v": "0.1.0",
+      "h": "639a7615f265f2a379a296949b227c9927c679a64062fe69c9fb2dc350bae8b1",
+      "p": []
+    },
+    "sys/apps/notepad/main.js": {
+      "v": "0.1.0",
+      "h": "2cdfb02173bfcfd78cb17aff7e86ee60a3345c28b1c7acf864ea8363627d8b7b",
+      "p": []
+    },
+    "sys/apps/notepad/style.css": {
+      "v": "0.1.0",
+      "h": "bf2edc1f7156541bfe703466c5830957965c69b477494ec133c35d9a70b13165",
+      "p": []
+    },
+    "sys/apps/settings/app.json": {
+      "v": "0.2.0",
+      "h": "2b7fa2afaa321c99e0f9fc56d4021b3a116ef717508cf9ca89fd0fab8a34a2ee",
+      "p": []
+    },
+    "sys/apps/settings/index.html": {
+      "v": "0.3.0",
+      "h": "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
+      "p": [
+        "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
+        "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
+        "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f"
+      ]
+    },
+    "sys/apps/terminal/app.json": {
+      "v": "0.2.0",
+      "h": "09a9fc776757ab616e732e972d1a852cb90ac73e009b8826670c8fac294150bd",
+      "p": []
+    },
+    "sys/apps/terminal/index.html": {
+      "v": "0.2.2",
+      "h": "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b",
+      "p": [
+        "96d45652e50eaea67c0266f48537e560b22edee5ac89c2ec0fb433b2e10d2c45",
+        "d2b70ebfd1dd923f3e27fc906a4ba166e19f7dcb5f6c2f40da4c6e784dc1ceb6"
+      ]
+    },
+    "sys/boot_loader/example.js": {
+      "v": "0.1.0",
+      "h": "fc4a398f05b0dc6c3c136d2ea40c1bceebaaa4f26ccd8c7d6ed1aac56be1c59a",
+      "p": []
+    },
+    "sys/boot_loader/redver.js": {
+      "v": "0.1.0",
+      "h": "dab96be8df52ee8aff93eaa811439ce2f8b2306250836a664cfc95ac6b1ad04a",
+      "p": []
+    },
+    "sys/components/hello.js": {
+      "v": "0.3.0",
+      "h": "74a87ce848060bd01199f9b8b8f1fed893d75975e307ce1bcc645a0a7f36dcec",
+      "p": []
+    },
+    "sys/themes/dark.css": {
+      "v": "0.3.0",
+      "h": "57d37ea17a73c4e23261eecd4e2c89937f96ec7c096baa17b45c5fcb1e088cc0",
+      "p": []
+    },
+    "sys/themes/light.css": {
+      "v": "0.3.0",
+      "h": "011b9618ad6219b2cb383faddcf893443c796f49ea58f82c85af2c57456262eb",
+      "p": []
+    },
+    "sys/wallpapers/night.svg": {
+      "v": "0.3.0",
+      "h": "e3055b85016ce8acce329b8a77bb6497382e0f611a1f824242d1b6b874d15eee",
+      "p": []
+    },
+    "sys/wallpapers/sky.svg": {
+      "v": "0.3.0",
+      "h": "c97ea65fd16d45d1f40cdc8e8dadf8978b284ad4ea66077af3f77ee6ff0a618b",
+      "p": []
+    }
+  }
 }

@@ -18,7 +18,7 @@
   const I = (n) => window.TrainOSIcon(n);
 
   const K = {
-    version: '0.2.3',
+    version: '0.3.0',
     safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
     on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
     emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },
@@ -120,7 +120,7 @@
     // ---- 設定 ----
     async setSettings(patch) {
       if (!patch || typeof patch !== 'object') throw new Error('不正な設定');
-      const ok = ['theme', 'wallpaper', 'language', 'bootLoader', 'syncMinutes', 'desktop', 'fileTypeHandlers'];
+      const ok = ['theme', 'wallpaper', 'language', 'bootLoader', 'syncMinutes', 'desktop', 'fileTypeHandlers', 'disabledComponents'];
       for (const k of Object.keys(patch)) if (ok.includes(k)) this.settings[k] = patch[k];
       if (patch.bootLoader) {
         await window.TrainOSBoot.use(this, patch.bootLoader); // キャッシュ更新 + settings.json 保存
@@ -133,12 +133,21 @@
       this.emit('settings');
     },
 
+    // フォルダ内のファイル名の一覧（切り替えできるものを設定画面に出すため）
+    names(path, re) {
+      const d = this.find(path);
+      return ((d && d.children) || []).filter((c) => !c.isDirectory && re.test(c.name)).map((c) => c.name).sort();
+    },
+
     async info() {
       let bootLoaders = [];
       try { bootLoaders = await window.TrainOSBoot.list(this); } catch (e) { /* フォルダが無いだけ */ }
       return {
         version: this.version, backend: localStorage.getItem('trainos.backend'),
         user: (this.backend && this.backend.user) || null, bootLoaders, safe: this.safe,
+        themes: this.names('/sys/themes', /\.css$/).map((n) => n.replace(/\.css$/, '')),
+        wallpapers: this.names('/sys/wallpapers', /\.(png|jpe?g|gif|webp|svg)$/i),
+        components: this.names('/sys/components', /\.js$/),
       };
     },
 
@@ -150,7 +159,8 @@
     async loadComponents() {
       const dir = this.find('/sys/components');
       const files = ((dir && dir.children) || []).filter((c) => !c.isDirectory && /\.js$/.test(c.name))
-        .map((c) => c.name).sort();
+        .map((c) => c.name).sort()
+        .filter((n) => !(this.settings.disabledComponents || []).includes(n)); // 設定画面でオフにしたもの
       for (const name of files) {
         try {
           const code = await (await this.readFile('/sys/components/' + name)).text();
@@ -274,6 +284,8 @@
     const icons = document.createElement('div');
     icons.id = 'icons';
     desk.appendChild(icons);
+    const themeEl = document.createElement('style'); // sys/themes/<名前>.css を入れる
+    document.head.appendChild(themeEl);
     let z = 1, n = 0;
 
     const D = {
@@ -309,15 +321,22 @@
         };
       },
 
+      // テーマ: sys/themes/<名前>.css を <style> に入れる（色は CSS 変数で決まる）
+      // 壁紙: '#色' などの色 / '/パス' / sys/wallpapers 内のファイル名
       applySettings() {
         const s = kernel.settings;
-        document.documentElement.style.colorScheme = s.theme === 'dark' ? 'dark' : 'light';
-        const w = s.wallpaper;
-        desk.style.backgroundImage = '';
+        const theme = /^[\w-]+$/.test(s.theme || '') ? s.theme : 'light';
+        kernel.readFile('/sys/themes/' + theme + '.css').then((b) => b.text())
+          .then((css) => { themeEl.textContent = css; }, () => { themeEl.textContent = ''; });
+        const w = s.wallpaper || '';
+        const file = /^[\w-]+\.(png|jpe?g|gif|webp|svg)$/i.test(w) ? '/sys/wallpapers/' + w : w.startsWith('/') ? w : null;
         desk.style.background = '';
-        if (w && w.startsWith('/')) {
-          kernel.readFile(w).then((b) => {
-            desk.style.background = 'center / cover url(' + URL.createObjectURL(b) + ')';
+        if (file) {
+          const type = { svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' }[file.split('.').pop().toLowerCase()] || '';
+          kernel.readFile(file).then((blob) => {
+            if (D._wp) URL.revokeObjectURL(D._wp);
+            D._wp = URL.createObjectURL(new Blob([blob], { type }));
+            desk.style.background = 'center / cover url(' + D._wp + ')';
           }).catch(() => {});
         } else if (w) {
           desk.style.background = w;

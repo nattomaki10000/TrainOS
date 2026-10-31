@@ -1,0 +1,13 @@
+/* ライト（標準）。色は CSS 変数で決まる */
+:root {
+  color-scheme: light;
+  --desk-bg: #245;
+  --bar-bg: #222;
+  --bar-fg: #eee;
+  --btn-bg: #444;
+  --win-bg: #fff;
+  --win-fg: #111;
+  --title-bg: #335;
+  --title-fg: #fff;
+  --icon-fg: #fff;
+}

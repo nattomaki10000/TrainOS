@@ -11,6 +11,7 @@
 
   const API = 'https://www.googleapis.com/drive/v3/';
   const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files/';
+  const UPLOAD_V2 = 'https://www.googleapis.com/upload/drive/v2/files/'; // v2 の更新は PUT（ブラウザの CORS を通る）
   const FOLDER = 'application/vnd.google-apps.folder';
   const SCOPE = 'https://www.googleapis.com/auth/drive';
   const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -165,9 +166,30 @@
       await this.mkdir(dir);
       let e = this.ids.get(path);
       if (!e) { e = { id: await this._create(name, this.ids.get(dir).id, false), dir: false }; this.ids.set(path, e); this.mine.set(path, e); }
-      await this._f(UPLOAD + e.id + '?uploadType=media', {
-        method: 'PATCH', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob,
-      });
+      await this._update(e.id, blob);
+    }
+
+    // 内容の更新。v3 の PATCH は、ブラウザの CORS（プリフライト）で拒否される。
+    // 通る方法を順に試し、通ったものを覚える。TypeError は CORS・通信エラー（HTTP エラーは別の Error）。
+    async _update(id, blob) {
+      const type = blob.type || 'application/octet-stream';
+      const ways = [
+        () => this._f(UPLOAD_V2 + id + '?uploadType=media', { method: 'PUT', headers: { 'Content-Type': type }, body: blob }),
+        () => this._f(UPLOAD + id + '?uploadType=media', { method: 'POST', headers: { 'Content-Type': type, 'X-HTTP-Method-Override': 'PATCH' }, body: blob }),
+      ];
+      let last;
+      for (const i of this._way === undefined ? [0, 1] : [this._way]) {
+        try {
+          await ways[i]();
+          if (this._way === undefined) console.info('[drive] 更新方式:', i === 0 ? 'v2 PUT' : 'v3 POST + override');
+          this._way = i;
+          return;
+        } catch (err) {
+          if (!(err instanceof TypeError)) throw err;
+          last = err;
+        }
+      }
+      throw new Error('Drive への更新がブラウザに拒否されました（CORS）: ' + (last && last.message));
     }
 
     async writeFile(path, blob, opts) {

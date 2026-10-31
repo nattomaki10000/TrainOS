@@ -26,7 +26,7 @@ input, select, button { font: inherit; }
   <label>自動保存の間隔 <input id="min" type="number" min="1" max="120" style="width:5em"> 分</label>
 </fieldset>
 <fieldset><legend>標準アプリ</legend>
-  <label><button id="rst">足りない標準ファイルを復元</button></label>
+  <label><button id="rst">標準ファイルを復元・更新</button></label>
 </fieldset>
 <fieldset><legend>情報</legend><div id="info"></div></fieldset>
 <div id="st"></div>
@@ -38,7 +38,10 @@ const set = async (p) => {
   catch (e) { say('失敗: ' + e.message); }
 };
 $('rst').onclick = async () => {
-  try { say((await TrainOS.sys.restoreDefaults()) + ' 個のファイルを復元しました'); }
+  try {
+    const r = await TrainOS.sys.restoreDefaults(true);
+    say(r.copied.length + ' 件コピー、' + r.updated.length + ' 件更新' + (r.conflicts.length ? '、編集済みのため .new を作成: ' + r.conflicts.join(', ') : ''));
+  }
   catch (e) { say('失敗: ' + e.message); }
 };
 (async () => {

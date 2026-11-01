@@ -20,6 +20,14 @@ input, select, button { font: inherit; }
   <label>テーマ <select id="theme"></select></label>
   <label>壁紙 <select id="wp"></select></label>
   <label>色・パス <input id="wpc" size="22" placeholder="#245 や /usr/documents/bg.png"><button id="wpb">適用</button></label>
+  <label>ドック <select id="dock"></select></label>
+  <label>アイコンセット <select id="iconset"></select></label>
+  <label>フォント <select id="fontf"></select></label>
+  <label>システムのフォント名 <input id="fonts" size="14" placeholder="例: Noto Sans JP"></label>
+  <label>文字の大きさ <input id="fsize" type="number" min="9" max="32" style="width:4em"> <button id="fontb">フォントを適用</button></label>
+</fieldset>
+<fieldset><legend>キー割り当て</legend>
+  <label><select id="keymap"></select></label>
 </fieldset>
 <fieldset><legend>components（次回の起動から有効）</legend><div id="comp"></div></fieldset>
 <fieldset id="sync" hidden><legend>Google Drive</legend>
@@ -60,6 +68,14 @@ $('rst').onclick = async () => {
   fill($('theme'), info.themes.length ? info.themes : ['light'], s.theme || 'light');
   fill($('wp'), info.wallpapers, isFile(s.wallpaper) ? s.wallpaper : '', 'なし（色）');
   $('wpc').value = isFile(s.wallpaper) ? '' : (s.wallpaper || '');
+  fill($('dock'), info.docks, s.dock === undefined ? 'bottom' : s.dock, 'なし');
+  fill($('iconset'), info.iconsets, s.iconset, '標準');
+  fill($('keymap'), info.keymaps, s.keymap === undefined ? 'default' : s.keymap, 'なし');
+  const f = s.font || {};
+  const fFile = /\.(woff2?|ttf|otf)$/i.test(f.ui || '');
+  fill($('fontf'), info.fonts, fFile ? f.ui : '', '標準');
+  $('fonts').value = fFile ? '' : (f.ui || '');
+  $('fsize').value = f.size || 14;
 
   const off = new Set(s.disabledComponents || []);
   for (const name of info.components) {
@@ -79,6 +95,10 @@ $('rst').onclick = async () => {
     (info.safe ? ' / セーフモード' : '');
 
   $('boot').onchange = () => set({ bootLoader: $('boot').value || null });
+  $('dock').onchange = () => set({ dock: $('dock').value || null });
+  $('iconset').onchange = () => set({ iconset: $('iconset').value || null });
+  $('keymap').onchange = () => set({ keymap: $('keymap').value || null });
+  $('fontb').onclick = () => set({ font: { ui: $('fontf').value || $('fonts').value.trim(), mono: f.mono || '', size: Math.min(32, Math.max(9, +$('fsize').value || 14)) } });
   $('theme').onchange = () => set({ theme: $('theme').value });
   $('wp').onchange = () => set({ wallpaper: $('wp').value || null });
   $('wpb').onclick = () => set({ wallpaper: $('wpc').value.trim() || null });

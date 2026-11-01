@@ -1,0 +1,23 @@
+/* まる（角丸を大きく、影を深く、開くときに動く） */
+:root {
+  color-scheme: light;
+  --desk-bg: #3b5b8c;
+  --bar-bg: #1d2a44;
+  --bar-fg: #fff;
+  --btn-bg: #33466b;
+  --win-bg: #fff;
+  --win-fg: #111;
+  --title-bg: #4a6fa5;
+  --title-fg: #fff;
+  --icon-fg: #fff;
+  --win-radius: 16px;
+  --win-border: 0;
+  --win-shadow: 0 10px 30px #0008;
+  --title-pad: 6px 8px 6px 14px;
+  --icon-size: 40px;
+  --icon-cell: 92px;
+  --anim: .15s;
+  --dock-bg: #1d2a44cc;
+  --dock-fg: #fff;
+  --dock-radius: 24px;
+}

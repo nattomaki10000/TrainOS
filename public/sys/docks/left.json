@@ -1,0 +1,10 @@
+{
+  "position": "left",
+  "iconSize": 40,
+  "gap": 6,
+  "radius": 12,
+  "opacity": 0.9,
+  "labels": true,
+  "autoHide": true,
+  "items": ["explorer", "terminal", "notepad", "settings", { "path": "/usr/documents", "name": "ドキュメント", "icon": "folder" }]
+}

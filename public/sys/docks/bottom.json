@@ -1,0 +1,10 @@
+{
+  "position": "bottom",
+  "iconSize": 44,
+  "gap": 8,
+  "radius": 16,
+  "opacity": 0.9,
+  "labels": false,
+  "autoHide": false,
+  "items": ["explorer", "terminal", "notepad", "settings"]
+}

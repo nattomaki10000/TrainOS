@@ -131,6 +131,13 @@
       },
     };
 
+    // Alt / Meta を含むキーは、アプリの中でも OS のキー割り当てが効くように親へ渡す
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey || e.metaKey) {
+        parent.postMessage({ type: 'key', key: e.key, code: e.code, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey }, '*');
+      }
+    });
+
     parent.postMessage({ type: 'ready' }, '*');
   }
 
@@ -264,6 +271,7 @@
       this.instances.set(instance.id, instance);
       host.appendChild(iframe);
       if (this.kernel.desktop.attach) this.kernel.desktop.attach(instance, host);
+      if (this.kernel.emit) this.kernel.emit('apps');
       return instance;
     }
 
@@ -273,6 +281,7 @@
       this.instances.delete(instanceId);
       inst.iframe.remove();
       if (inst.onClose) inst.onClose();
+      if (this.kernel.emit) this.kernel.emit('apps');
     }
 
     // ---- HTML 組み立て ----
@@ -330,6 +339,8 @@
         if (inst.openPath) inst.send({ type: 'open', path: inst.openPath });
       } else if (m.type === 'syscall') {
         this._handleSyscall(inst, m);
+      } else if (m.type === 'key' && this.kernel.handleKey) {
+        this.kernel.handleKey(m);
       }
     }
 

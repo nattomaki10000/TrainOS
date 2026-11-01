@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/themes', 'sys/wallpapers', 'sys/components', 'usr', 'usr/desktop', 'usr/documents'];
+  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/themes', 'sys/wallpapers', 'sys/fonts', 'sys/docks', 'sys/keymaps', 'sys/iconsets', 'sys/components', 'usr', 'usr/desktop', 'usr/documents'];
 
   const DEFAULT_SETTINGS = {
     theme: 'light',
@@ -19,6 +19,10 @@
     language: 'ja',
     syncMinutes: 10,
     disabledComponents: [],
+    dock: 'bottom',
+    keymap: 'default',
+    iconset: null,
+    font: { ui: '', mono: '', size: 14 },
     bootLoader: null,
     fileTypeHandlers: {},
     desktop: {

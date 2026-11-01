@@ -10,4 +10,14 @@
   --title-bg: #222a44;
   --title-fg: #eee;
   --icon-fg: #eee;
+  --win-radius: 6px;
+  --win-border: 1px solid #888;
+  --win-shadow: 0 4px 16px #0006;
+  --title-pad: 2px 4px 2px 8px;
+  --icon-size: 34px;
+  --icon-cell: 84px;
+  --anim: 0s;
+  --dock-bg: #000b;
+  --dock-fg: #eee;
+  --dock-radius: 16px;
 }

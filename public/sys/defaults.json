@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "files": {
     "sys/apps/explorer/app.json": {
       "v": "0.2.0",
@@ -39,12 +39,13 @@
       "p": []
     },
     "sys/apps/settings/index.html": {
-      "v": "0.3.0",
-      "h": "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
+      "v": "0.3.1",
+      "h": "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b",
       "p": [
         "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
         "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
-        "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f"
+        "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f",
+        "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7"
       ]
     },
     "sys/apps/terminal/app.json": {
@@ -75,14 +76,48 @@
       "h": "74a87ce848060bd01199f9b8b8f1fed893d75975e307ce1bcc645a0a7f36dcec",
       "p": []
     },
-    "sys/themes/dark.css": {
-      "v": "0.3.0",
-      "h": "57d37ea17a73c4e23261eecd4e2c89937f96ec7c096baa17b45c5fcb1e088cc0",
+    "sys/docks/bottom.json": {
+      "v": "0.3.1",
+      "h": "eef1871955590512fac1d65ca460ac06e271acb7e0451855254dba683362e402",
       "p": []
     },
+    "sys/docks/left.json": {
+      "v": "0.3.1",
+      "h": "a27044b5962a5e33a721e991639a910ac30d6b7a4925843d8a91458aabbc5aeb",
+      "p": []
+    },
+    "sys/fonts/README.txt": {
+      "v": "0.3.1",
+      "h": "1235de17daa16dc750052a38ce6c4d58f692723b1b0250bdf5f8734183ecd365",
+      "p": []
+    },
+    "sys/iconsets/example.json": {
+      "v": "0.3.1",
+      "h": "734aca0795130da701fe708bdb556ea767240b4183d8a383ca260b08bc4d5fc5",
+      "p": []
+    },
+    "sys/keymaps/default.json": {
+      "v": "0.3.1",
+      "h": "22650de0d1e455cc8d9e4ed68a4785c4141dedaf0e6398d74e41dc2e769c9442",
+      "p": []
+    },
+    "sys/themes/dark.css": {
+      "v": "0.3.1",
+      "h": "bcb020bb47edfab4396e04b2f30d9c4e3eb85cd910f99b87d0318800eeb44e2f",
+      "p": [
+        "57d37ea17a73c4e23261eecd4e2c89937f96ec7c096baa17b45c5fcb1e088cc0"
+      ]
+    },
     "sys/themes/light.css": {
-      "v": "0.3.0",
-      "h": "011b9618ad6219b2cb383faddcf893443c796f49ea58f82c85af2c57456262eb",
+      "v": "0.3.1",
+      "h": "7deb6464e867eb7560a984c38cb5d7ad348e5cd6ac6a8c7ba2316ac36e4d19e0",
+      "p": [
+        "011b9618ad6219b2cb383faddcf893443c796f49ea58f82c85af2c57456262eb"
+      ]
+    },
+    "sys/themes/round.css": {
+      "v": "0.3.1",
+      "h": "e55d03dda6561b048ed44a0b8d27b0860bf7dddba4d2a2e0e6b12c8c8e24b194",
       "p": []
     },
     "sys/wallpapers/night.svg": {

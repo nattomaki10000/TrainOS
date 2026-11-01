@@ -1,4 +1,4 @@
-/* ライト（標準）。色は CSS 変数で決まる */
+/* ライト（標準）。色・角丸・影・アニメーションなどは CSS 変数で決まる */
 :root {
   color-scheme: light;
   --desk-bg: #245;
@@ -10,4 +10,14 @@
   --title-bg: #335;
   --title-fg: #fff;
   --icon-fg: #fff;
+  --win-radius: 6px;
+  --win-border: 1px solid #888;
+  --win-shadow: 0 4px 16px #0006;
+  --title-pad: 2px 4px 2px 8px;
+  --icon-size: 34px;
+  --icon-cell: 84px;
+  --anim: 0s;
+  --dock-bg: #000a;
+  --dock-fg: #fff;
+  --dock-radius: 16px;
 }

@@ -1,0 +1,8 @@
+{
+  "Alt+T": { "launch": "terminal" },
+  "Alt+E": { "launch": "explorer" },
+  "Alt+N": { "launch": "notepad" },
+  "Alt+,": { "launch": "settings" },
+  "Alt+W": "closeWindow",
+  "Alt+Space": "launcher"
+}

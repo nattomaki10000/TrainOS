@@ -1,0 +1,31 @@
+{
+  "position": "bottom",
+  "fill": true,
+  "size": 40,
+  "iconSize": 28,
+  "gap": 4,
+  "items": [
+    {
+      "type": "launcher"
+    },
+    "explorer",
+    "terminal",
+    "notepad",
+    "settings",
+    {
+      "type": "windows"
+    },
+    {
+      "type": "spacer"
+    },
+    {
+      "type": "save"
+    },
+    {
+      "type": "clock"
+    },
+    {
+      "type": "version"
+    }
+  ]
+}

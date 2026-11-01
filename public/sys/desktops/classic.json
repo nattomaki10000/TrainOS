@@ -1,0 +1,16 @@
+{
+  "windowManager": "floating",
+  "windowTheme": "light",
+  "shellTheme": "light",
+  "cursor": null,
+  "wallpaper": "sky.svg",
+  "animation": "fade",
+  "panel": "bottom",
+  "keymap": "default",
+  "iconset": null,
+  "font": {
+    "ui": "",
+    "mono": "",
+    "size": 14
+  }
+}

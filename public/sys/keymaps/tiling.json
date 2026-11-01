@@ -1,0 +1,11 @@
+{
+  "Alt+T": { "launch": "terminal" },
+  "Alt+E": { "launch": "explorer" },
+  "Alt+N": { "launch": "notepad" },
+  "Alt+,": { "launch": "settings" },
+  "Alt+W": "closeWindow",
+  "Alt+J": "nextWindow",
+  "Alt+K": "prevWindow",
+  "Alt+Enter": "toMaster",
+  "Alt+Space": "launcher"
+}

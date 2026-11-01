@@ -1,0 +1,24 @@
+{
+  "position": "top",
+  "fill": true,
+  "size": 30,
+  "iconSize": 22,
+  "gap": 4,
+  "items": [
+    {
+      "type": "launcher"
+    },
+    {
+      "type": "windows"
+    },
+    {
+      "type": "spacer"
+    },
+    {
+      "type": "save"
+    },
+    {
+      "type": "clock"
+    }
+  ]
+}

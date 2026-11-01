@@ -8,26 +8,42 @@
 body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; display: grid; gap: 12px; align-content: start; }
 fieldset { border: 1px solid #8886; border-radius: 6px; display: grid; gap: 8px; }
 label { display: flex; gap: 8px; align-items: center; }
+label > select { flex: 1; min-width: 0; }
 input, select, button { font: inherit; }
+.note { font-size: 12px; opacity: .7; }
 #st { opacity: .7; min-height: 1.2em; }
 </style>
 </head>
 <body>
-<fieldset><legend>起動画面</legend>
-  <label><select id="boot"></select></label>
+<fieldset><legend>デスクトップ環境</legend>
+  <label><select id="desktopEnv"></select></label>
+  <div class="note">選ぶと、ウィンドウマネージャー、テーマ、カーソル、壁紙、アニメーション、パネルなどがまとめて切り替わります。そのあと、下の項目を個別に変えられます。</div>
 </fieldset>
-<fieldset><legend>見た目</legend>
-  <label>テーマ <select id="theme"></select></label>
-  <label>壁紙 <select id="wp"></select></label>
-  <label>色・パス <input id="wpc" size="22" placeholder="#245 や /usr/documents/bg.png"><button id="wpb">適用</button></label>
-  <label>ドック <select id="dock"></select></label>
+<fieldset><legend>ウィンドウ</legend>
+  <label>ウィンドウマネージャー <select id="windowManager"></select></label>
+  <label>ウィンドウテーマ <select id="windowTheme"></select></label>
+  <label>アニメーション <select id="animation"></select></label>
+</fieldset>
+<fieldset><legend>シェル</legend>
+  <label>シェルテーマ <select id="shellTheme"></select></label>
+  <label>パネル（ドック・タスクバー） <select id="panel"></select></label>
   <label>アイコンセット <select id="iconset"></select></label>
+  <label>マウスカーソル <select id="cursor"></select></label>
+</fieldset>
+<fieldset><legend>壁紙</legend>
+  <label><select id="wp"></select></label>
+  <label>色・パス <input id="wpc" size="22" placeholder="#245 や /usr/documents/bg.png"><button id="wpb">適用</button></label>
+</fieldset>
+<fieldset><legend>フォント</legend>
   <label>フォント <select id="fontf"></select></label>
   <label>システムのフォント名 <input id="fonts" size="14" placeholder="例: Noto Sans JP"></label>
   <label>文字の大きさ <input id="fsize" type="number" min="9" max="32" style="width:4em"> <button id="fontb">フォントを適用</button></label>
 </fieldset>
 <fieldset><legend>キー割り当て</legend>
   <label><select id="keymap"></select></label>
+</fieldset>
+<fieldset><legend>起動画面</legend>
+  <label><select id="bootLoader"></select></label>
 </fieldset>
 <fieldset><legend>components（次回の起動から有効）</legend><div id="comp"></div></fieldset>
 <fieldset id="sync" hidden><legend>Google Drive</legend>
@@ -41,17 +57,33 @@ input, select, button { font: inherit; }
 <script>
 const $ = (id) => document.getElementById(id);
 const say = (m) => { $('st').textContent = m; };
-const set = async (p) => {
-  try { await TrainOS.sys.setSettings(p); say('保存しました'); }
-  catch (e) { say('失敗: ' + e.message); }
-};
+const legacy = (s, k, d) => (s[k] !== undefined ? s[k] : d);
 const fill = (sel, items, cur, none) => {
   sel.replaceChildren();
-  if (none) sel.add(new Option(none, ''));
+  sel.add(new Option(none, ''));
   for (const n of items) sel.add(new Option(n, n));
   sel.value = cur || '';
 };
 const isFile = (w) => /^[\w-]+\.\w+$/.test(w || '');
+
+// [項目の id（= 設定のキー）, info の一覧, 「なし」の表示, 設定が未指定のときの値]
+const SEL = [
+  ['desktopEnv', 'desktops', '（個別に設定）', () => ''],
+  ['windowManager', 'windowManagers', '内蔵（最小）', () => 'floating'],
+  ['windowTheme', 'windowThemes', '内蔵', (s) => legacy(s, 'theme', 'light')],
+  ['animation', 'animations', 'なし', () => ''],
+  ['shellTheme', 'shellThemes', '内蔵', (s) => legacy(s, 'theme', 'light')],
+  ['panel', 'panels', 'なし', (s) => legacy(s, 'dock', 'bottom')],
+  ['iconset', 'iconsets', '標準', () => ''],
+  ['cursor', 'cursors', '標準', () => ''],
+  ['keymap', 'keymaps', 'なし', () => 'default'],
+  ['bootLoader', 'bootLoaders', '内蔵（シンプル）', () => ''],
+];
+
+const set = async (p) => {
+  try { await TrainOS.sys.setSettings(p); say('保存しました'); }
+  catch (e) { say('失敗: ' + e.message); }
+};
 
 $('rst').onclick = async () => {
   try {
@@ -60,17 +92,13 @@ $('rst').onclick = async () => {
   } catch (e) { say('失敗: ' + e.message); }
 };
 
-(async () => {
-  TrainOS.app.setTitle('設定');
+async function render() {
   const { settings: s, info } = await TrainOS.sys.getSettings();
 
-  fill($('boot'), info.bootLoaders, s.bootLoader, '内蔵（シンプル）');
-  fill($('theme'), info.themes.length ? info.themes : ['light'], s.theme || 'light');
+  for (const [id, list, none, def] of SEL) fill($(id), info[list], s[id] !== undefined ? s[id] : def(s), none);
   fill($('wp'), info.wallpapers, isFile(s.wallpaper) ? s.wallpaper : '', 'なし（色）');
   $('wpc').value = isFile(s.wallpaper) ? '' : (s.wallpaper || '');
-  fill($('dock'), info.docks, s.dock === undefined ? 'bottom' : s.dock, 'なし');
-  fill($('iconset'), info.iconsets, s.iconset, '標準');
-  fill($('keymap'), info.keymaps, s.keymap === undefined ? 'default' : s.keymap, 'なし');
+
   const f = s.font || {};
   const fFile = /\.(woff2?|ttf|otf)$/i.test(f.ui || '');
   fill($('fontf'), info.fonts, fFile ? f.ui : '', '標準');
@@ -78,6 +106,7 @@ $('rst').onclick = async () => {
   $('fsize').value = f.size || 14;
 
   const off = new Set(s.disabledComponents || []);
+  $('comp').replaceChildren();
   for (const name of info.components) {
     const l = document.createElement('label');
     const c = document.createElement('input');
@@ -92,16 +121,19 @@ $('rst').onclick = async () => {
   if (info.backend === 'drive') { $('sync').hidden = false; $('min').value = s.syncMinutes || 10; }
   $('info').textContent = 'TrainOS ' + info.version + ' / 保存先: ' +
     (info.backend === 'drive' ? 'Google Drive' + (info.user ? '（' + info.user + '）' : '') : 'ローカルフォルダ') +
-    (info.safe ? ' / セーフモード' : '');
+    (info.safe ? ' / セーフモード（カスタマイズは使われません）' : '');
+  return f;
+}
 
-  $('boot').onchange = () => set({ bootLoader: $('boot').value || null });
-  $('dock').onchange = () => set({ dock: $('dock').value || null });
-  $('iconset').onchange = () => set({ iconset: $('iconset').value || null });
-  $('keymap').onchange = () => set({ keymap: $('keymap').value || null });
-  $('fontb').onclick = () => set({ font: { ui: $('fontf').value || $('fonts').value.trim(), mono: f.mono || '', size: Math.min(32, Math.max(9, +$('fsize').value || 14)) } });
-  $('theme').onchange = () => set({ theme: $('theme').value });
+(async () => {
+  TrainOS.app.setTitle('設定');
+  let f = await render();
+  for (const [id] of SEL) {
+    $(id).onchange = async () => { await set({ [id]: $(id).value || null }); if (id === 'desktopEnv') f = await render(); };
+  }
   $('wp').onchange = () => set({ wallpaper: $('wp').value || null });
   $('wpb').onclick = () => set({ wallpaper: $('wpc').value.trim() || null });
+  $('fontb').onclick = () => set({ font: { ui: $('fontf').value || $('fonts').value.trim(), mono: f.mono || '', size: Math.min(32, Math.max(9, +$('fsize').value || 14)) } });
   $('min').onchange = () => set({ syncMinutes: Math.max(1, +$('min').value || 10) });
 })().catch((e) => say('読み込み失敗: ' + e.message));
 </script>

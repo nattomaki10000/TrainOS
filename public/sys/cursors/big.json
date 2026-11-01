@@ -1,0 +1,12 @@
+{
+  "default": {
+    "svg": "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 28 28'><path d='M3 3 L3 22 L8 17.5 L11.5 25 L15 23.5 L11.5 16.5 L18 16.5 Z' fill='#fff' stroke='#000' stroke-width='1.5' stroke-linejoin='round'/></svg>",
+    "x": 5,
+    "y": 5
+  },
+  "pointer": {
+    "svg": "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 28 28'><circle cx='14' cy='14' r='8' fill='none' stroke='#000' stroke-width='3'/><circle cx='14' cy='14' r='2' fill='#000'/></svg>",
+    "x": 24,
+    "y": 24
+  }
+}

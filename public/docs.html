@@ -20,15 +20,20 @@ pre code { background: none; padding: 0; }
 <h2 id="layout">フォルダ構成</h2>
 <pre><code>TrainOS/            選んだフォルダ（または Drive の TrainOS/）
 ├─ sys/
-│  ├─ settings.json   設定（bootLoader, fileTypeHandlers ...）
-│  ├─ boot_loader/    起動画面。複数置ける
-│  ├─ themes/         テーマ（CSS）。複数置ける
-│  ├─ wallpapers/     壁紙の画像。複数置ける
-│  ├─ fonts/          フォントファイル
-│  ├─ docks/          ドックの設定（JSON）。複数置ける
-│  ├─ keymaps/        キー割り当て（JSON）。複数置ける
-│  ├─ iconsets/       アイコンの差し替え（JSON）。複数置ける
-│  ├─ components/     OS の挙動を差し替える JS。ファイルごとにオンオフ
+│  ├─ settings.json   設定
+│  ├─ desktops/       デスクトップ環境（全部の設定のまとめ。JSON）
+│  ├─ wm/             ウィンドウマネージャー（JS）
+│  ├─ window_themes/  ウィンドウテーマ（CSS）
+│  ├─ shell_themes/   シェルテーマ（CSS）
+│  ├─ panels/         パネル = ドック・タスクバー（JSON）
+│  ├─ cursors/        マウスカーソル（JSON）
+│  ├─ animations/     アニメーション（CSS）
+│  ├─ wallpapers/     壁紙（画像、動く SVG、動く HTML）
+│  ├─ fonts/          フォント
+│  ├─ keymaps/        キー割り当て（JSON）
+│  ├─ iconsets/       アイコンの差し替え（JSON）
+│  ├─ boot_loader/    起動画面（JS）
+│  ├─ components/     起動時に動く JS。ファイルごとにオンオフ
 │  └─ apps/           アプリ。置くだけで使える
 └─ usr/               desktop/ documents/ など</code></pre>
 
@@ -78,21 +83,70 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <h2 id="safe">セーフモード</h2>
 <p>URL に <code>?mode=safe</code> を付けると、<code>sys/components/</code> のコードとキャッシュ済みブートローダーを無視して、内蔵 UI で起動する。壊したコードの修復用。</p>
 
-<h2 id="custom">カスタマイズの置き場所</h2>
-<p>切り替えられるものは、フォルダに複数置いて、設定画面から選べる。</p>
+<h2 id="custom">デスクトップ環境のカスタマイズ</h2>
+<p>切り替えられるものは、すべて「フォルダに複数置いて、設定画面で選ぶ」形になっている。Linux のように、部品ごとに差し替えられる。</p>
+
+<h3>デスクトップ環境（sys/desktops/名前.json）</h3>
+<p>下の部品の選び方を、まとめて1つにしたもの。設定画面で選ぶと、中身が設定に書き込まれ、そのあとは個別にも変えられる。標準で <code>classic</code>（フローティング + タスクバー）、<code>dock</code>（丸い窓 + ガラスのドック + 動く壁紙）、<code>tiling</code>（タイル + ダーク + ネオンのカーソル）が入っている。</p>
+<pre><code>{ "windowManager": "tiling", "windowTheme": "dark", "shellTheme": "dark",
+  "cursor": "neon", "wallpaper": "stars.html", "animation": null,
+  "panel": "top", "keymap": "tiling", "iconset": null,
+  "font": { "ui": "", "mono": "", "size": 14 } }</code></pre>
+
+<h3>ウィンドウマネージャー（sys/wm/名前.js）</h3>
+<p>ウィンドウの置き方・並べ方・ボタンを決める JS。<code>floating</code>（標準）、<code>tiling</code>、<code>fullscreen</code> が入っている。読めないとき・セーフモードでは、内蔵の最小の WM になる。</p>
+<pre><code>TrainOSWM.register({
+  name: 'mine',
+  buttons: ['min', 'max', 'close'],   // タイトルバーのボタン
+  movable: true, resizable: true,
+  open(w, ctx) { ctx.move(w, 40, 40, w.size.width, w.size.height); },  // 新しい窓を置く
+  layout(wins, ctx) { },              // 窓が増減したとき・画面の大きさが変わったとき
+  focus(w, wins, ctx) { },            // 窓が前面に出たとき
+});
+// w   = { id, app, el, bar, title, content, state, size }
+// ctx = { area(), gap(), move(w, x, y, 幅, 高さ), raise(w), state(w, 'normal' | 'max' | 'min') }</code></pre>
+
+<h3>ウィンドウテーマとシェルテーマ（CSS）</h3>
+<p>色や形は CSS 変数で決める。ウィンドウテーマ（<code>sys/window_themes/</code>）は窓、シェルテーマ（<code>sys/shell_themes/</code>）はデスクトップ・パネル・メニュー・アイコン。それぞれ別に選べる。</p>
 <ul>
-  <li><code>sys/boot_loader/</code> 起動画面。</li>
-  <li><code>sys/themes/名前.css</code> テーマ。色は CSS 変数で決める: <code>--desk-bg</code> <code>--bar-bg</code> <code>--bar-fg</code> <code>--btn-bg</code> <code>--win-bg</code> <code>--win-fg</code> <code>--title-bg</code> <code>--title-fg</code> <code>--icon-fg</code>、さらに <code>--win-radius</code> <code>--win-border</code> <code>--win-shadow</code> <code>--title-pad</code> <code>--icon-size</code> <code>--icon-cell</code> <code>--anim</code>（窓が開くときの秒数）<code>--dock-bg</code> <code>--dock-fg</code> <code>--dock-radius</code>。<code>color-scheme</code> も書ける。</li>
-  <li><code>sys/wallpapers/</code> 壁紙の画像（png / jpg / gif / webp / svg）。</li>
-  <li><code>sys/components/名前.js</code> 起動時に実行される JS（<code>kernel</code> が渡される）。設定画面でファイルごとにオンオフできる（次回の起動から）。セーフモードでは実行されない。</li>
-  <li><code>sys/docks/名前.json</code> ドック。<code>{"position":"bottom","iconSize":44,"gap":8,"radius":16,"opacity":0.9,"labels":false,"autoHide":false,"items":["explorer","terminal",{"path":"/usr/documents","name":"書類","icon":"folder"}]}</code>。位置は bottom / top / left / right。項目はアプリの id か、<code>path</code> を持つオブジェクト。起動中のアプリには点が付き、押すと前面に出る。</li>
-  <li><code>sys/keymaps/名前.json</code> キー割り当て。<code>{"Alt+T":{"launch":"terminal"},"Alt+W":"closeWindow","Alt+Space":"launcher"}</code>。アクションは <code>launch</code>（アプリの id と任意の <code>openPath</code>）、<code>open</code>（パス）、<code>closeWindow</code>、<code>launcher</code>。Alt か Meta を含む組み合わせは、アプリの中でも効く。</li>
-  <li><code>sys/iconsets/名前.json</code> アイコンセット。<code>{"cube":{"vb":"0 0 512 512","d":"..."}}</code> のように、アイコン名ごとに SVG のパスを差し替える（<code>example.json</code> 参照）。</li>
-  <li><code>sys/fonts/</code> フォントファイル（woff2 / woff / ttf / otf）。設定画面で選ぶか、システムにあるフォント名を指定する。いまは OS の画面（バー、ウィンドウの枠、アイコン）に効く。アプリの中は v0.5.0 の予定。</li>
-  <li><code>sys/apps/</code> アプリ。</li>
+  <li>ウィンドウ: <code>--win-bg</code> <code>--win-fg</code> <code>--win-border</code> <code>--win-radius</code> <code>--win-shadow</code> <code>--win-focus</code>（前面の窓の輪郭）<code>--title-bg</code> <code>--title-fg</code> <code>--title-pad</code> <code>--btn-gap</code>。<code>color-scheme</code> も書ける。</li>
+  <li>シェル: <code>--desk-bg</code> <code>--panel-bg</code> <code>--panel-fg</code> <code>--btn-bg</code> <code>--panel-radius</code> <code>--icon-fg</code> <code>--icon-size</code> <code>--icon-cell</code>。</li>
+  <li>タイルの窓の間隔: <code>--wm-gap</code>（例: 8px）。</li>
+  <li>部品を直接指定してもよい。id と class は変えない約束: <code>#desktop</code> <code>#wp</code> <code>#icons</code> <code>.ico</code> <code>.win</code>（<code>.t</code> タイトルバー、<code>.btns</code>、<code>.c</code> 中身、<code>.front</code> <code>.min</code>）<code>#panel</code>（<code>.pk</code> <code>.pw</code>）<code>#menu</code>。</li>
 </ul>
-<p>テーマの CSS では、変数だけでなく部品を直接指定してもよい。部品の id と class は変えない約束にしている: <code>#desktop</code> <code>#icons</code> <code>.ico</code> <code>.win</code> <code>.t</code>（タイトルバー）<code>.c</code>（中身）<code>#bar</code> <code>#menu</code> <code>#dock</code> <code>.dk</code>。セーフモードでは、テーマ・フォント・ドック・キー割り当て・アイコンセットは使われない。</p>
-<p>今後の予定: タスクバーのカスタマイズ、効果音、起動時に開くアプリ。</p>
+
+<h3>パネル（sys/panels/名前.json）: ドックにもタスクバーにもなる</h3>
+<p>1つの仕組みで、画面の端いっぱいのタスクバーにも、浮かぶドックにもなる。標準で <code>bottom</code>（タスクバー）、<code>top</code>（細いバー）、<code>dock</code>（ドック）、<code>left</code>（自動で隠れる縦のドック）。</p>
+<pre><code>{ "position": "bottom",      // bottom / top / left / right
+  "fill": true,              // true: 端いっぱい（窓はパネルの下に隠れない） false: 浮かぶ
+  "size": 40,                // fill のときの高さ（幅）
+  "iconSize": 28, "gap": 4, "radius": 16, "margin": 8, "opacity": 0.9,
+  "labels": false, "autoHide": false,
+  "items": [ {"type":"launcher"}, "explorer", "terminal",
+             {"path":"/usr/documents","name":"書類","icon":"folder"},
+             {"type":"windows"}, {"type":"spacer"},
+             {"type":"save"}, {"type":"clock"}, {"type":"version"} ] }</code></pre>
+<p>項目は、アプリの id、<code>path</code> を持つオブジェクト、または <code>type</code>: <code>launcher</code>（アプリの一覧）、<code>windows</code>（開いている窓の一覧。押すと前面・最小化の切り替え）、<code>save</code>（Drive の保存）、<code>clock</code>、<code>version</code>、<code>spacer</code>（右寄せ用の空き）。</p>
+
+<h3>マウスカーソル（sys/cursors/名前.json）</h3>
+<p>種類ごとに SVG と、つかむ位置（x, y）を書く。種類は <code>default</code> <code>pointer</code> <code>text</code> <code>move</code> <code>wait</code>。SVG には <code>width</code> と <code>height</code>（128 以下）が必要。書かなかった種類は標準のカーソルのまま。アプリの中にも効く。</p>
+<pre><code>{ "default": { "svg": "&lt;svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'&gt;...&lt;/svg&gt;", "x": 3, "y": 3 } }</code></pre>
+
+<h3>壁紙とアニメーション</h3>
+<ul>
+  <li><code>sys/wallpapers/</code>: 画像（png / jpg / gif / webp）、<b>動く SVG</b>（<code>train.svg</code>）、<b>動く HTML</b>（<code>stars.html</code>。Canvas などで描く。隔離された枠の中で動き、OS の機能には触れない）。設定では、<code>#色</code> や <code>/パス</code> も指定できる。</li>
+  <li><code>sys/animations/名前.css</code>: 窓が開く・閉じる・並び直すときの動き。<code>.win.opening</code> と <code>.win.closing</code> に <code>animation</code> を付け、<code>--anim-close-ms</code>（閉じるアニメーションの長さ。ミリ秒）と <code>--snap-ms</code>（並び直しの速さ）を書く。標準で <code>fade</code> <code>zoom</code> <code>slide</code>。</li>
+</ul>
+
+<h3>そのほか</h3>
+<ul>
+  <li><code>sys/keymaps/名前.json</code>: <code>{"Alt+T":{"launch":"terminal"},"Alt+W":"closeWindow"}</code>。アクションは <code>launch</code>（アプリ id と任意の <code>openPath</code>）、<code>open</code>（パス）、<code>closeWindow</code> <code>launcher</code> <code>nextWindow</code> <code>prevWindow</code> <code>toMaster</code> <code>maximize</code> <code>minimize</code>。Alt か Meta を含む組み合わせは、アプリの中でも効く。</li>
+  <li><code>sys/iconsets/名前.json</code>: <code>{"cube":{"vb":"0 0 512 512","d":"..."}}</code> のように、アイコン名ごとに SVG のパスを差し替える。</li>
+  <li><code>sys/fonts/</code>: フォントファイル（woff2 / woff / ttf / otf）。設定画面で選ぶか、システムのフォント名を指定する。いまは OS の画面に効く（アプリの中は v0.5.0 の予定）。</li>
+  <li><code>sys/boot_loader/</code>: 起動画面。<code>sys/components/</code>: 起動時に動く JS（ファイルごとにオンオフ）。<code>sys/apps/</code>: アプリ。</li>
+</ul>
+<p>セーフモード（<code>?mode=safe</code>）では、これらのカスタマイズはすべて使われず、内蔵の見た目・最小の WM・内蔵のパネルで起動する。壊したときの修復用。</p>
+<p>今後の予定: 効果音、起動時に開くアプリ。</p>
 
 <h2 id="update">標準ファイルの更新</h2>
 <p>起動時に、サイトの <code>sys/defaults.json</code> と手元の <code>sys/installed.json</code> を見比べ、バージョンが違うときだけ標準アプリ・起動画面を更新する。</p>

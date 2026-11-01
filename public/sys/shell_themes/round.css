@@ -1,0 +1,11 @@
+/* シェルテーマ: まる */
+:root {
+  --desk-bg: #3b5b8c;
+  --panel-bg: #1d2a44;
+  --panel-fg: #fff;
+  --btn-bg: #33466b;
+  --icon-fg: #fff;
+  --icon-size: 40px;
+  --icon-cell: 92px;
+  --panel-radius: 24px;
+}

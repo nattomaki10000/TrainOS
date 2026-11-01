@@ -1,0 +1,10 @@
+/* シェルテーマ: ダーク */
+:root {
+  --desk-bg: #0b1220;
+  --panel-bg: #000;
+  --panel-fg: #ddd;
+  --btn-bg: #2a2a2a;
+  --icon-fg: #eee;
+  --icon-size: 34px;
+  --icon-cell: 84px;
+}

@@ -1,0 +1,13 @@
+/* ウィンドウテーマ: ライト（標準）。窓の色・枠・角丸・影・タイトルバー */
+:root {
+  color-scheme: light;
+  --win-bg: #fff;
+  --win-fg: #111;
+  --win-border: 1px solid #888;
+  --win-radius: 6px;
+  --win-shadow: 0 4px 16px #0006;
+  --win-focus: 1px solid #7aa7e6;
+  --title-bg: #335;
+  --title-fg: #fff;
+  --title-pad: 2px 4px 2px 8px;
+}

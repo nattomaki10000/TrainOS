@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; } canvas { width: 100%; height: 100%; display: block; }</style>
+<canvas id="c"></canvas>
+<script>
+// 動く壁紙の例: 星が左へ流れる。.html の壁紙は、隔離された枠の中で動く（OS の機能には触れない）
+const c = document.getElementById('c'), x = c.getContext('2d');
+let W, H, S = [];
+function size() {
+  W = c.width = innerWidth; H = c.height = innerHeight;
+  S = Array.from({ length: Math.min(260, (W * H / 4000) | 0) }, () => ({ x: Math.random() * W, y: Math.random() * H, z: Math.random() * 2 + 0.3 }));
+}
+addEventListener('resize', size); size();
+(function frame() {
+  x.clearRect(0, 0, W, H); x.fillStyle = '#fff';
+  for (const s of S) { s.x -= s.z * 0.4; if (s.x < 0) s.x = W; x.globalAlpha = 0.4 + s.z / 3; x.fillRect(s.x, s.y, s.z, s.z); }
+  requestAnimationFrame(frame);
+})();
+</script>

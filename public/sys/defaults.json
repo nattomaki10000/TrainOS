@@ -1,6 +1,21 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "files": {
+    "sys/animations/fade.css": {
+      "v": "0.3.2",
+      "h": "964ed1abdb2275e9f6d3d71f7db2f62cf00c6e1e670f25cca295ab1dc72e270b",
+      "p": []
+    },
+    "sys/animations/slide.css": {
+      "v": "0.3.2",
+      "h": "63056266c3837423bb155e01f2a2f483eb39cd33c29aad99a0898e828554d646",
+      "p": []
+    },
+    "sys/animations/zoom.css": {
+      "v": "0.3.2",
+      "h": "4374c15603a89427000af5e750d85db0bddc5cb438ff8abc1cd26103936fe369",
+      "p": []
+    },
     "sys/apps/explorer/app.json": {
       "v": "0.2.0",
       "h": "14816c74e28e50db34dbeb4bec81f230594dcb156bbb70ae4390d382e3081625",
@@ -39,13 +54,14 @@
       "p": []
     },
     "sys/apps/settings/index.html": {
-      "v": "0.3.1",
-      "h": "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b",
+      "v": "0.3.2",
+      "h": "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a",
       "p": [
         "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
         "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
         "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f",
-        "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7"
+        "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
+        "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b"
       ]
     },
     "sys/apps/terminal/app.json": {
@@ -76,14 +92,29 @@
       "h": "74a87ce848060bd01199f9b8b8f1fed893d75975e307ce1bcc645a0a7f36dcec",
       "p": []
     },
-    "sys/docks/bottom.json": {
-      "v": "0.3.1",
-      "h": "eef1871955590512fac1d65ca460ac06e271acb7e0451855254dba683362e402",
+    "sys/cursors/big.json": {
+      "v": "0.3.2",
+      "h": "21dbfce6e373a0fabce2f61f96a9709abd038b267a3bb85714997e19f1e7b01e",
       "p": []
     },
-    "sys/docks/left.json": {
-      "v": "0.3.1",
-      "h": "a27044b5962a5e33a721e991639a910ac30d6b7a4925843d8a91458aabbc5aeb",
+    "sys/cursors/neon.json": {
+      "v": "0.3.2",
+      "h": "2f26dcab6ff1982cf45b9aec653591fb6ab82beff544f105057aee59a1d67c48",
+      "p": []
+    },
+    "sys/desktops/classic.json": {
+      "v": "0.3.2",
+      "h": "0d9fd9d410594a87b805005c83aa26e632b18962e6966ad09eb15ff2f1fd505d",
+      "p": []
+    },
+    "sys/desktops/dock.json": {
+      "v": "0.3.2",
+      "h": "10da28046bae3811ec5a794947e0635e43735ff396acd7d13fc70a1f11cae5b0",
+      "p": []
+    },
+    "sys/desktops/tiling.json": {
+      "v": "0.3.2",
+      "h": "978164efcb842f083147a6ed0bb134cdf4401446ddf46601a4d878cc35f2bbdc",
       "p": []
     },
     "sys/fonts/README.txt": {
@@ -97,27 +128,55 @@
       "p": []
     },
     "sys/keymaps/default.json": {
-      "v": "0.3.1",
-      "h": "22650de0d1e455cc8d9e4ed68a4785c4141dedaf0e6398d74e41dc2e769c9442",
+      "v": "0.3.2",
+      "h": "23ddbe8fbc4b6e2997289a23faa5795a86211494abc64cec55b77330921de84c",
+      "p": [
+        "22650de0d1e455cc8d9e4ed68a4785c4141dedaf0e6398d74e41dc2e769c9442"
+      ]
+    },
+    "sys/keymaps/tiling.json": {
+      "v": "0.3.2",
+      "h": "45e127293a31ba86c67a3ba218a421aa24b7c065da2076ba37d966e7ad49f4c9",
       "p": []
     },
-    "sys/themes/dark.css": {
-      "v": "0.3.1",
-      "h": "bcb020bb47edfab4396e04b2f30d9c4e3eb85cd910f99b87d0318800eeb44e2f",
-      "p": [
-        "57d37ea17a73c4e23261eecd4e2c89937f96ec7c096baa17b45c5fcb1e088cc0"
-      ]
+    "sys/panels/bottom.json": {
+      "v": "0.3.2",
+      "h": "9fb8074ab96820aac077ae3f39d1d803094e77d1b43abaa47ceffa55b95aedd4",
+      "p": []
     },
-    "sys/themes/light.css": {
-      "v": "0.3.1",
-      "h": "7deb6464e867eb7560a984c38cb5d7ad348e5cd6ac6a8c7ba2316ac36e4d19e0",
-      "p": [
-        "011b9618ad6219b2cb383faddcf893443c796f49ea58f82c85af2c57456262eb"
-      ]
+    "sys/panels/dock.json": {
+      "v": "0.3.2",
+      "h": "612f275a0105c37257129cbc208b757c67afb0092a2a0b0ca7d19d37c75179c2",
+      "p": []
     },
-    "sys/themes/round.css": {
-      "v": "0.3.1",
-      "h": "e55d03dda6561b048ed44a0b8d27b0860bf7dddba4d2a2e0e6b12c8c8e24b194",
+    "sys/panels/left.json": {
+      "v": "0.3.2",
+      "h": "413c5adb9137898e8638551404a9fc1ab6075c4345bc451ee084fa422b85ff9d",
+      "p": []
+    },
+    "sys/panels/top.json": {
+      "v": "0.3.2",
+      "h": "6a30c7475f94741161c92fff279ec4290dc64017c010d6f8db6e561f5dd77aea",
+      "p": []
+    },
+    "sys/shell_themes/dark.css": {
+      "v": "0.3.2",
+      "h": "161019f7f4754e524ea215ecba84fafce918c202d9e541422ebcf2fdbf5dd7b4",
+      "p": []
+    },
+    "sys/shell_themes/glass.css": {
+      "v": "0.3.2",
+      "h": "fac0386c50ba5a295fe431e8fa628e44b9cddf068c5114dceb9c86847d05e1c5",
+      "p": []
+    },
+    "sys/shell_themes/light.css": {
+      "v": "0.3.2",
+      "h": "0fa751a580d28dfd16444f6847ae14f06792fbb468eb995587b462238ca7a967",
+      "p": []
+    },
+    "sys/shell_themes/round.css": {
+      "v": "0.3.2",
+      "h": "9f382860dd69ebdb29d37f3b998896f7eb10c1a0025114ecb3463b5c549f1a8c",
       "p": []
     },
     "sys/wallpapers/night.svg": {
@@ -128,6 +187,46 @@
     "sys/wallpapers/sky.svg": {
       "v": "0.3.0",
       "h": "c97ea65fd16d45d1f40cdc8e8dadf8978b284ad4ea66077af3f77ee6ff0a618b",
+      "p": []
+    },
+    "sys/wallpapers/stars.html": {
+      "v": "0.3.2",
+      "h": "0970c4cde40bd9b3cadb7b7e2f0ff3d5ebb8e5546f560c24ba7064f42630d802",
+      "p": []
+    },
+    "sys/wallpapers/train.svg": {
+      "v": "0.3.2",
+      "h": "1b8dbee48e99f474ff8c0c1ab8e400d4aab992be1f958a537f8accfceb052890",
+      "p": []
+    },
+    "sys/window_themes/dark.css": {
+      "v": "0.3.2",
+      "h": "d800dafe91caec8f5f0b247237ae0f5582774fb4e7d2271cd050c52f9fb39b2a",
+      "p": []
+    },
+    "sys/window_themes/light.css": {
+      "v": "0.3.2",
+      "h": "6d675a449de7b2d63af4cee142c92af659e0f1d5d00402af9fbafd7c2e6a6555",
+      "p": []
+    },
+    "sys/window_themes/round.css": {
+      "v": "0.3.2",
+      "h": "7b168466356ea0c50cfe0360c8a48c403f22dedef117e4fc3c4faf65f5363b00",
+      "p": []
+    },
+    "sys/wm/floating.js": {
+      "v": "0.3.2",
+      "h": "d56a290b913dc7b6a2e74ecb3428f947442bc2fc7885c47f569ff6899cdcdf4b",
+      "p": []
+    },
+    "sys/wm/fullscreen.js": {
+      "v": "0.3.2",
+      "h": "e9dca5a6a69becc26f5e4e680ab5c8b21461ab5ba461ffd1cbc7cde551a44982",
+      "p": []
+    },
+    "sys/wm/tiling.js": {
+      "v": "0.3.2",
+      "h": "f853fdd992a9fb12c8d2fb612acfcc35e3f408bbb5dc4579c82e7dfb38ddc568",
       "p": []
     }
   }

@@ -1,0 +1,23 @@
+{
+  "position": "left",
+  "iconSize": 40,
+  "gap": 6,
+  "radius": 12,
+  "opacity": 0.92,
+  "labels": true,
+  "autoHide": true,
+  "items": [
+    {
+      "type": "launcher"
+    },
+    "explorer",
+    "terminal",
+    "notepad",
+    "settings",
+    {
+      "path": "/usr/documents",
+      "name": "ドキュメント",
+      "icon": "folder"
+    }
+  ]
+}

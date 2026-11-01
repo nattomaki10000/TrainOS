@@ -1,0 +1,16 @@
+{
+  "windowManager": "tiling",
+  "windowTheme": "dark",
+  "shellTheme": "dark",
+  "cursor": "neon",
+  "wallpaper": "stars.html",
+  "animation": null,
+  "panel": "top",
+  "keymap": "tiling",
+  "iconset": null,
+  "font": {
+    "ui": "",
+    "mono": "",
+    "size": 14
+  }
+}

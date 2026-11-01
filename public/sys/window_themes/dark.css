@@ -1,0 +1,13 @@
+/* ウィンドウテーマ: ダーク */
+:root {
+  color-scheme: dark;
+  --win-bg: #1c1c1c;
+  --win-fg: #e6e6e6;
+  --win-border: 1px solid #444;
+  --win-radius: 6px;
+  --win-shadow: 0 4px 16px #000a;
+  --win-focus: 1px solid #6b8cff;
+  --title-bg: #222a44;
+  --title-fg: #eee;
+  --title-pad: 2px 4px 2px 8px;
+}

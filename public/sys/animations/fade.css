@@ -1,0 +1,6 @@
+/* アニメーション: ふわっと */
+:root { --anim-close-ms: 150; --snap-ms: .15s; }
+.win.opening { animation: tos-in .15s ease-out; }
+.win.closing { animation: tos-out .15s ease-in forwards; }
+@keyframes tos-in { from { opacity: 0; } }
+@keyframes tos-out { to { opacity: 0; } }

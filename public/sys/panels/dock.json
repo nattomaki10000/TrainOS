@@ -1,0 +1,21 @@
+{
+  "position": "bottom",
+  "iconSize": 44,
+  "gap": 8,
+  "radius": 16,
+  "opacity": 0.92,
+  "labels": false,
+  "autoHide": false,
+  "items": [
+    {
+      "type": "launcher"
+    },
+    "explorer",
+    "terminal",
+    "notepad",
+    "settings",
+    {
+      "type": "save"
+    }
+  ]
+}

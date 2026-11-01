@@ -1,0 +1,16 @@
+{
+  "windowManager": "floating",
+  "windowTheme": "round",
+  "shellTheme": "glass",
+  "cursor": null,
+  "wallpaper": "train.svg",
+  "animation": "zoom",
+  "panel": "dock",
+  "keymap": "default",
+  "iconset": null,
+  "font": {
+    "ui": "",
+    "mono": "",
+    "size": 14
+  }
+}

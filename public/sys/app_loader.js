@@ -131,6 +131,9 @@
       },
     };
 
+    // アプリの中をクリックしたら、そのウィンドウを前面に出す（親は iframe の中のクリックを受け取れないため）
+    window.addEventListener('pointerdown', () => parent.postMessage({ type: 'focus' }, '*'), true);
+
     // Alt / Meta を含むキーは、アプリの中でも OS のキー割り当てが効くように親へ渡す
     document.addEventListener('keydown', (e) => {
       if (e.altKey || e.metaKey) {
@@ -318,6 +321,12 @@
         el.setAttribute('src', await blobToDataUrl(await this.kernel.readFile(p), p));
       }
 
+      if (this.kernel.cursorCss) { // マウスカーソルのテーマを、アプリの中にも渡す
+        const cs = doc.createElement('style');
+        cs.textContent = this.kernel.cursorCss;
+        doc.head.insertBefore(cs, doc.head.firstChild);
+      }
+
       const ic = doc.createElement('script');
       ic.textContent = 'window.__TI__=' + JSON.stringify(window.TrainOSIcons || {}) + ';';
       doc.head.insertBefore(ic, doc.head.firstChild);
@@ -341,6 +350,8 @@
         this._handleSyscall(inst, m);
       } else if (m.type === 'key' && this.kernel.handleKey) {
         this.kernel.handleKey(m);
+      } else if (m.type === 'focus' && inst.focus) {
+        inst.focus();
       }
     }
 

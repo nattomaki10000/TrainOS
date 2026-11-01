@@ -1,0 +1,6 @@
+/* アニメーション: ズーム */
+:root { --anim-close-ms: 200; --snap-ms: .2s; }
+.win.opening { animation: tos-in .2s ease-out; }
+.win.closing { animation: tos-out .2s ease-in forwards; }
+@keyframes tos-in { from { opacity: 0; transform: scale(.8); } }
+@keyframes tos-out { to { opacity: 0; transform: scale(.8); } }

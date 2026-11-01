@@ -1,0 +1,10 @@
+/* シェルテーマ: ライト（標準）。デスクトップ・パネル・アイコン */
+:root {
+  --desk-bg: #245;
+  --panel-bg: #222;
+  --panel-fg: #eee;
+  --btn-bg: #444;
+  --icon-fg: #fff;
+  --icon-size: 34px;
+  --icon-cell: 84px;
+}

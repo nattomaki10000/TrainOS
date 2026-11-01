@@ -1,0 +1,12 @@
+/* シェルテーマ: ガラス（変数だけでなく、部品を直接指定する例） */
+:root {
+  --desk-bg: #123;
+  --panel-bg: #ffffff33;
+  --panel-fg: #fff;
+  --btn-bg: #ffffff40;
+  --icon-fg: #fff;
+  --icon-size: 36px;
+  --icon-cell: 88px;
+  --panel-radius: 18px;
+}
+#panel { backdrop-filter: blur(14px); border: 1px solid #ffffff55; }

@@ -11,15 +11,20 @@
 (function () {
   'use strict';
 
-  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/themes', 'sys/wallpapers', 'sys/fonts', 'sys/docks', 'sys/keymaps', 'sys/iconsets', 'sys/components', 'usr', 'usr/desktop', 'usr/documents'];
+  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/desktops', 'sys/wm', 'sys/window_themes', 'sys/shell_themes', 'sys/cursors', 'sys/animations', 'sys/panels', 'sys/wallpapers', 'sys/fonts', 'sys/keymaps', 'sys/iconsets', 'sys/components', 'usr', 'usr/desktop', 'usr/documents'];
 
   const DEFAULT_SETTINGS = {
-    theme: 'light',
-    wallpaper: null,
+    desktopEnv: 'classic',
+    windowManager: 'floating',
+    windowTheme: 'light',
+    shellTheme: 'light',
+    cursor: null,
+    animation: 'fade',
+    panel: 'bottom',
+    wallpaper: 'sky.svg',
     language: 'ja',
     syncMinutes: 10,
     disabledComponents: [],
-    dock: 'bottom',
     keymap: 'default',
     iconset: null,
     font: { ui: '', mono: '', size: 14 },

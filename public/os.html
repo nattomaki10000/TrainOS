@@ -54,6 +54,7 @@ svg { vertical-align: -.125em; }
 .pk svg { font-size: calc(var(--panel-icon, 28px) * .6); }
 .pk:hover, .pw:hover { background: var(--btn-bg, #fff3); }
 .pk:disabled { opacity: .4; cursor: default; }
+.pk.warn { color: #f90; }
 .pk.lbl { flex-direction: row; gap: 6px; font-size: inherit; }
 .pk.run::after { content: ''; position: absolute; bottom: 1px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .pw { flex-direction: row; gap: 6px; font-size: inherit; max-width: 160px; }
@@ -69,15 +70,15 @@ svg { vertical-align: -.125em; }
 <body>
 <div id="boot-screen"></div>
 <div id="desktop"></div>
-<script src="sys/icons.js?v=0.3.2"></script>
-<script src="sys/boot.js?v=0.3.2"></script>
-<script src="sys/backend_local.js?v=0.3.2"></script>
-<script src="sys/backend_drive.js?v=0.3.2"></script>
-<script src="sys/skeleton.js?v=0.3.2"></script>
-<script src="sys/app_loader.js?v=0.3.2"></script>
-<script src="sys/desktop.js?v=0.3.2"></script>
-<script src="firebase-config.js?v=0.3.2"></script>
-<script src="sys/kernel.js?v=0.3.2"></script>
+<script src="sys/icons.js?v=0.4.0"></script>
+<script src="sys/boot.js?v=0.4.0"></script>
+<script src="sys/backend_local.js?v=0.4.0"></script>
+<script src="sys/backend_drive.js?v=0.4.0"></script>
+<script src="sys/skeleton.js?v=0.4.0"></script>
+<script src="sys/app_loader.js?v=0.4.0"></script>
+<script src="sys/desktop.js?v=0.4.0"></script>
+<script src="firebase-config.js?v=0.4.0"></script>
+<script src="sys/kernel.js?v=0.4.0"></script>
 <script>TrainOSKernel.boot();</script>
 </body>
 </html>

@@ -371,8 +371,14 @@
         if (o.type === 'save') {
           if (!kernel.backend || !kernel.backend.flush) continue;
           const b = el('button', 'pk'); b.title = 'Google Drive に保存';
-          const upd = (n) => { b.innerHTML = I('floppy-disk') + (n ? '<span>' + (+n) + '</span>' : ''); b.disabled = !n; };
-          upd(kernel.backend.pending ? kernel.backend.pending.size : 0);
+          const msg = { offline: 'オフラインです。つながると自動で送ります', login: '再ログインが必要です。押すとログインします', error: '送れませんでした。押すと再試行します' };
+          const upd = (n, status) => {
+            b.innerHTML = I('floppy-disk') + (n ? '<span>' + (+n) + '</span>' : '');
+            b.disabled = !n;
+            b.classList.toggle('warn', !!status && status !== 'ok');
+            b.title = (msg[status] || 'Google Drive に保存') + (n ? '（未送信 ' + (+n) + ' 件）' : '');
+          };
+          upd(kernel.backend.pending ? kernel.backend.pending.size : 0, kernel.backend.status);
           kernel.backend.onPending = upd;
           b.onclick = () => kernel.flush().catch((e) => alert(e.message));
           panel.append(b); continue;

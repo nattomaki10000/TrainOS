@@ -28,7 +28,7 @@
   };
 
   const K = {
-    version: '0.3.2',
+    version: '0.4.0',
     safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
     on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
     emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },
@@ -220,6 +220,75 @@
       return true;
     },
 
+    // 画面の真ん中に出す選択ダイアログ（OS 本体用）。選んだ値を返す。Esc は null
+    dialog({ title, message, buttons }) {
+      return new Promise((ok) => {
+        const d = document.createElement('div');
+        d.className = 'tos-dialog';
+        d.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;background:#0008;font:14px system-ui,sans-serif';
+        const b = document.createElement('div');
+        b.setAttribute('role', 'dialog');
+        b.style.cssText = 'background:var(--win-bg,#fff);color:var(--win-fg,#111);border-radius:var(--win-radius,8px);padding:16px;max-width:min(440px,92vw);display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 30px #0008';
+        const h = document.createElement('b'); h.textContent = title;
+        const m = document.createElement('div'); m.textContent = message; m.style.whiteSpace = 'pre-wrap';
+        b.append(h, m);
+        const done = (v) => { d.remove(); document.removeEventListener('keydown', onKey, true); ok(v); };
+        const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } };
+        for (const x of buttons) {
+          const k = document.createElement('button');
+          k.textContent = x.label;
+          k.style.cssText = 'font:inherit;padding:6px 10px;cursor:pointer;text-align:left';
+          k.onclick = () => done(x.value);
+          b.append(k);
+        }
+        d.append(b);
+        document.body.appendChild(d);
+        document.addEventListener('keydown', onKey, true);
+        b.querySelector('button').focus();
+      });
+    },
+
+    // Drive 側も変わっていたとき: 'local'（このタブの内容で上書き）か 'drive'（Drive の内容を残す）を返す。
+    // 迷ったとき（Esc）や「両方残す」は、このタブの内容を別のファイルに保存して、Drive の内容を残す（何も失わない）
+    async conflictChoice({ path, blob }) {
+      const v = await this.dialog({
+        title: 'Drive 側でも変更されています',
+        message: '「' + path + '」は、このタブで編集している間に、Drive 側でも変更されました。どちらを残しますか？',
+        buttons: [
+          { label: '両方残す（このタブの内容は、別のファイルに保存する）', value: 'both' },
+          { label: 'このタブの内容で、Drive を上書きする', value: 'local' },
+          { label: 'Drive の内容を残す（このタブの変更は捨てる）', value: 'drive' },
+        ],
+      });
+      if (v === 'local') return 'local';
+      if (v === 'drive') return 'drive';
+      const d = new Date(), z = (n) => String(n).padStart(2, '0');
+      await this.writeFile(path + '.local-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()), blob);
+      return 'drive';
+    },
+
+    // ログインの期限切れ: ポップアップはクリック操作の中でしか開けないので、ボタンを出して待つ
+    async loginDialog() {
+      const v = await this.dialog({
+        title: 'Google のログインが切れました',
+        message: 'Drive につなぎ直すため、もう一度ログインしてください。未送信の変更は、このまま残っています。',
+        buttons: [{ label: 'Google でログイン', value: 'login' }, { label: 'あとで', value: null }],
+      });
+      if (v !== 'login') throw new Error('ログインしませんでした');
+      await this.backend.login();
+    },
+
+    // 前のタブで送れなかった変更を、IndexedDB から取り出して溜め直す。食い違いは選ばせる
+    async recover() {
+      const items = await this.backend.recover();
+      for (const it of items) {
+        const act = it.conflict ? await this.conflictChoice(it) : 'local';
+        if (act === 'drive') await this.backend.discard(it.path);
+        else await this.writeFile(it.path, it.blob);
+      }
+      return items.length;
+    },
+
     // ---- アプリ ----
     launchApp(id, opts) { return this.apps.launch(id, opts); },
     openFile(path) { return this.apps.openFile(path); },
@@ -271,7 +340,12 @@
       try {
         B.progress({ value: 5, label: 'ストレージを開いています…' });
         const kind = localStorage.getItem('trainos.backend');
-        if (kind === 'drive') { this.backend = new window.TrainOSDriveBackend(); await this._login(); }
+        if (kind === 'drive') {
+          this.backend = new window.TrainOSDriveBackend();
+          this.backend.onConflict = (info) => this.conflictChoice(info); // 送るとき、Drive 側も変わっていたら選ばせる
+          this.backend.askLogin = () => this.loginDialog();              // ログインが切れたら、ボタン付きで頼む
+          await this._login();
+        }
         else if (kind === 'local') this.backend = await window.TrainOSLocalBackend.open();
         else throw new Error('保存先が未選択です。index.html から起動してください');
 
@@ -284,6 +358,10 @@
 
         B.progress({ value: 40, label: 'ファイル一覧を読み込み中…' });
         this.index = await this.backend.buildIndex();
+        if (this.backend.recover) {
+          B.progress({ value: 42, label: '未送信の変更を確認中…' });
+          await this.recover();
+        }
         try { this.settings = JSON.parse(await (await this.readFile('/sys/settings.json')).text()); }
         catch (e) { console.warn('[kernel] settings.json を読めません。既定値で続行', e); this.settings = {}; }
         if ('delay' in this.backend) this.backend.delay = (this.settings.syncMinutes || 10) * 60000;

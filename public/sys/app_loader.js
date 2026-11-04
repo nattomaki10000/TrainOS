@@ -96,6 +96,9 @@
         if (m.error) p.reject(new Error(m.error)); else p.resolve(m.result);
       } else if (m.type === 'open') {
         if (openHandler) openHandler(m.path); else pendingOpen = m.path;
+      } else if (m.type === 'style') {
+        const s = document.getElementById('__trainos_css__'); // OS のテーマ・フォント・カーソルが変わった
+        if (s) s.textContent = m.css;
       }
     });
 
@@ -287,6 +290,11 @@
       if (this.kernel.emit) this.kernel.emit('apps');
     }
 
+    // 開いているアプリすべてにメッセージを送る
+    broadcast(msg) {
+      for (const i of this.instances.values()) i.send(msg);
+    }
+
     // ---- HTML 組み立て ----
     async buildSrcdoc(app) {
       const html = await this._text(app.entryPath);
@@ -321,11 +329,11 @@
         el.setAttribute('src', await blobToDataUrl(await this.kernel.readFile(p), p));
       }
 
-      if (this.kernel.cursorCss) { // マウスカーソルのテーマを、アプリの中にも渡す
-        const cs = doc.createElement('style');
-        cs.textContent = this.kernel.cursorCss;
-        doc.head.insertBefore(cs, doc.head.firstChild);
-      }
+      // OS のテーマ・フォント・カーソルを、アプリの中にも渡す（設定が変わったら broadcast で更新される）
+      const cs = doc.createElement('style');
+      cs.id = '__trainos_css__';
+      cs.textContent = this.kernel.appCss || '';
+      doc.head.insertBefore(cs, doc.head.firstChild);
 
       const ic = doc.createElement('script');
       ic.textContent = 'window.__TI__=' + JSON.stringify(window.TrainOSIcons || {}) + ';';

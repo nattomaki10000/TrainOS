@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "files": {
     "sys/animations/fade.css": {
       "v": "0.3.2",
@@ -22,9 +22,11 @@
       "p": []
     },
     "sys/apps/explorer/index.html": {
-      "v": "0.2.0",
-      "h": "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29",
-      "p": []
+      "v": "0.5.0",
+      "h": "9f9c1332380421bf771540d4c0b062c75bd5fa074338b645864f8b92e16d889c",
+      "p": [
+        "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29"
+      ]
     },
     "sys/apps/notepad/app.json": {
       "v": "0.2.0",
@@ -44,9 +46,11 @@
       "p": []
     },
     "sys/apps/notepad/style.css": {
-      "v": "0.1.0",
-      "h": "bf2edc1f7156541bfe703466c5830957965c69b477494ec133c35d9a70b13165",
-      "p": []
+      "v": "0.5.0",
+      "h": "e63befe93482929d3f8b6155b1303a882f05891b5e07f87b29da2a62238991d9",
+      "p": [
+        "bf2edc1f7156541bfe703466c5830957965c69b477494ec133c35d9a70b13165"
+      ]
     },
     "sys/apps/settings/app.json": {
       "v": "0.2.0",
@@ -54,14 +58,15 @@
       "p": []
     },
     "sys/apps/settings/index.html": {
-      "v": "0.3.2",
-      "h": "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a",
+      "v": "0.5.0",
+      "h": "6205003abf340aedf374a011a9e387574c5f8de2c6fee88230c44bdb94066319",
       "p": [
         "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
         "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
         "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f",
         "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
-        "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b"
+        "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b",
+        "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a"
       ]
     },
     "sys/apps/terminal/app.json": {
@@ -70,11 +75,12 @@
       "p": []
     },
     "sys/apps/terminal/index.html": {
-      "v": "0.2.2",
-      "h": "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b",
+      "v": "0.5.0",
+      "h": "01f64b10edb3f71d94c8fa79d263a7567946a041fd2d16e568cddde6a3876525",
       "p": [
         "96d45652e50eaea67c0266f48537e560b22edee5ac89c2ec0fb433b2e10d2c45",
-        "d2b70ebfd1dd923f3e27fc906a4ba166e19f7dcb5f6c2f40da4c6e784dc1ceb6"
+        "d2b70ebfd1dd923f3e27fc906a4ba166e19f7dcb5f6c2f40da4c6e784dc1ceb6",
+        "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b"
       ]
     },
     "sys/boot_loader/example.js": {
@@ -165,9 +171,11 @@
       "p": []
     },
     "sys/shell_themes/glass.css": {
-      "v": "0.3.2",
-      "h": "fac0386c50ba5a295fe431e8fa628e44b9cddf068c5114dceb9c86847d05e1c5",
-      "p": []
+      "v": "0.5.0",
+      "h": "c0556248f9ba2d67475e37757fff875c8aa6eee7022d22fad9132db0c45fb1cd",
+      "p": [
+        "fac0386c50ba5a295fe431e8fa628e44b9cddf068c5114dceb9c86847d05e1c5"
+      ]
     },
     "sys/shell_themes/light.css": {
       "v": "0.3.2",

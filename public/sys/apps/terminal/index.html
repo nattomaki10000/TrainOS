@@ -5,7 +5,7 @@
 <title>ターミナル</title>
 <style>
 html, body { height: 100%; margin: 0; background: #111; color: #ddd; }
-body { display: flex; flex-direction: column; font: 13px/1.4 ui-monospace, monospace; }
+body { display: flex; flex-direction: column; font-family: var(--font-mono, ui-monospace, monospace); font-size: calc(var(--font-size, 14px) - 1px); line-height: 1.4; }
 #out { flex: 1; margin: 0; padding: 8px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 .line { display: flex; gap: 6px; padding: 0 8px 8px; }
 #in { flex: 1; background: none; border: 0; color: inherit; font: inherit; outline: none; }

@@ -1,4 +1,4 @@
-/* シェルテーマ: ガラス（変数だけでなく、部品を直接指定する例） */
+/* シェルテーマ: ガラス。パネル（ドック・タスクバー）とランチャーのメニューの両方に、ぼかしと縁が付く */
 :root {
   --desk-bg: #123;
   --panel-bg: #ffffff33;
@@ -7,6 +7,9 @@
   --icon-fg: #fff;
   --icon-size: 36px;
   --icon-cell: 88px;
-  --panel-radius: 18px;
+  --panel-radius: 18px;      /* 浮かぶパネルとメニューの角丸（端いっぱいのパネルには使われない） */
+  --panel-filter: blur(14px);
+  --panel-border: 1px solid #ffffff55;
 }
-#panel { backdrop-filter: blur(14px); border: 1px solid #ffffff55; }
+/* 部品を直接指定する例: メニューに影を付ける */
+#menu { box-shadow: 0 8px 30px #0006; }

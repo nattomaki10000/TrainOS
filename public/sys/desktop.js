@@ -25,6 +25,9 @@
 
   const WM_ICON = { min: 'window-minimize', max: 'window-maximize', close: 'xmark' };
   const WM_TITLE = { min: '最小化', max: '最大化', close: '閉じる' };
+  const FONT_MIME = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
+  const HANDLES = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']; // 窓の辺と角（大きさを変えるつかみ）
+  const b64 = (buf) => { const a = new Uint8Array(buf); let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
 
   // 内蔵の最小の WM（セーフモードと、WM を読めなかったときに使う）
   const MIN_WM = {
@@ -54,6 +57,13 @@
     };
     const D = { wins, front: null, ready: false, pos: 'bottom', wlist: null, wmName: 'builtin' };
 
+    // 最大化中は「元に戻す」のアイコン（window-restore）にして、辺のつかみを隠す
+    const syncMax = (w) => {
+      w.el.classList.toggle('max', w.state === 'max');
+      const k = w.btns.querySelector('.b-max');
+      if (k) { k.innerHTML = I(w.state === 'max' ? 'window-restore' : 'window-maximize'); k.title = w.state === 'max' ? '元に戻す' : '最大化'; }
+    };
+
     // ---- WM に渡す道具 ----
     const ctx = {
       area: () => ({ x: 0, y: 0, w: desk.clientWidth, h: desk.clientHeight }),
@@ -77,10 +87,14 @@
         if (to === 'min') {
           if (w.state !== 'min') { w.beforeMin = w.state; w.state = 'min'; w.el.classList.add('min'); }
         } else {
-          if (w.state === 'min') { w.state = w.beforeMin || 'normal'; w.el.classList.remove('min'); }
+          if (w.state === 'min') { // 最小化から戻す。'normal' は「最小化をやめる」だけで、前の状態（最大化など）に戻る
+            w.state = w.beforeMin || 'normal'; w.el.classList.remove('min');
+            if (to === 'normal') to = null;
+          }
           if (to === 'max' && w.state !== 'max') { w.prev = rectOf(w); w.state = 'max'; const a = ctx.area(); ctx.move(w, a.x, a.y, a.w, a.h); }
           else if (to === 'normal' && w.state === 'max') { w.state = 'normal'; if (w.prev) ctx.move(w, w.prev.x, w.prev.y, w.prev.w, w.prev.h); }
         }
+        syncMax(w);
         D.relayout();
         D.refreshPanel();
       },
@@ -109,6 +123,29 @@
         w.btns.append(k);
       }
       w.el.classList.toggle('fixed', wm.resizable === false);
+      syncMax(w);
+    };
+
+    // 窓の辺と角をつかんで、大きさを変える（8方向。WM が resizable: false なら無効）
+    const startResize = (w, h, g, e) => {
+      if (wm.resizable === false || w.state !== 'normal') return;
+      e.preventDefault(); e.stopPropagation();
+      ctx.raise(w);
+      const r = rectOf(w), sx = e.clientX, sy = e.clientY, MINW = 200, MINH = 120;
+      if (g.setPointerCapture && e.pointerId !== undefined) { try { g.setPointerCapture(e.pointerId); } catch (x) { /* そのまま続ける */ } }
+      desk.classList.add('drag');
+      const move = (m) => {
+        const dx = m.clientX - sx, dy = m.clientY - sy;
+        let x = r.x, y = r.y, W = r.w, H = r.h;
+        if (h.includes('e')) W = Math.max(MINW, r.w + dx);
+        if (h.includes('s')) H = Math.max(MINH, r.h + dy);
+        if (h.includes('w')) { W = Math.max(MINW, r.w - dx); x = r.x + r.w - W; }
+        if (h.includes('n')) { H = Math.max(MINH, r.h - dy); y = r.y + r.h - H; if (y < 0) { H += y; y = 0; } }
+        const s = w.el.style;
+        s.left = x + 'px'; s.top = y + 'px'; s.width = W + 'px'; s.height = H + 'px';
+      };
+      const up = () => { for (const t of ['pointermove', 'pointerup', 'pointercancel']) g.removeEventListener(t, t === 'pointermove' ? move : up); desk.classList.remove('drag'); };
+      g.addEventListener('pointermove', move); g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
     };
 
     const closeWin = (w) => {
@@ -131,6 +168,7 @@
       w.content = el('div', 'c'); w.content._w = w;
       w.bar.append(w.title, w.btns);
       w.el.append(w.bar, w.content);
+      for (const h of HANDLES) { const g = el('div', 'rz rz-' + h); g.addEventListener('pointerdown', (e) => startResize(w, h, g, e)); w.el.append(g); }
       w.el.style.zIndex = ++z;
       setTimeout(() => w.el.classList.remove('opening'), 700);
       decorate(w);
@@ -151,14 +189,15 @@
       instance.onClose = () => closeWin(w);
       w.el.addEventListener('pointerdown', () => ctx.raise(w), true);
       w.bar.ondblclick = (e) => { if (!e.target.closest('button') && w.btns.querySelector('.b-max')) ctx.state(w, w.state === 'max' ? 'normal' : 'max'); };
-      w.bar.onpointerdown = (e) => {
+      w.bar.addEventListener('pointerdown', (e) => {
         if (wm.movable === false || w.state === 'max' || e.target.closest('button')) return;
-        const dx = e.clientX - w.el.offsetLeft, dy = e.clientY - w.el.offsetTop;
-        w.bar.setPointerCapture(e.pointerId);
+        const r = rectOf(w), dx = e.clientX - r.x, dy = e.clientY - r.y;
+        if (w.bar.setPointerCapture && e.pointerId !== undefined) { try { w.bar.setPointerCapture(e.pointerId); } catch (x) { /* そのまま続ける */ } }
         desk.classList.add('drag');
-        w.bar.onpointermove = (m) => { w.el.style.left = (m.clientX - dx) + 'px'; w.el.style.top = Math.max(0, m.clientY - dy) + 'px'; };
-        w.bar.onpointerup = () => { w.bar.onpointermove = w.bar.onpointerup = null; desk.classList.remove('drag'); };
-      };
+        const move = (m) => { w.el.style.left = (m.clientX - dx) + 'px'; w.el.style.top = Math.max(0, m.clientY - dy) + 'px'; };
+        const up = () => { for (const t of ['pointermove', 'pointerup', 'pointercancel']) w.bar.removeEventListener(t, t === 'pointermove' ? move : up); desk.classList.remove('drag'); };
+        w.bar.addEventListener('pointermove', move); w.bar.addEventListener('pointerup', up); w.bar.addEventListener('pointercancel', up);
+      });
       ctx.raise(w);
     };
 
@@ -248,31 +287,53 @@
       } catch (e) { /* 読めなければ色のまま */ }
     };
 
-    // フォント: sys/fonts のファイル名、またはシステムのフォント名
-    D.applyFont = (f) => {
+    // フォント: sys/fonts のファイル名、またはシステムのフォント名。
+    // アプリの中にも渡すため、ファイルのフォントは @font-face（data URL。2MB まで）にして D.fontCss に入れる
+    D.applyFont = async (f) => {
       f = f || {};
-      const rs = root.style, sz = +f.size;
-      if (!kernel.safe && sz >= 9 && sz <= 32) rs.setProperty('--font-size', sz + 'px'); else rs.removeProperty('--font-size');
+      const rs = root.style, sz = +f.size, vars = [], faces = [], okSize = !kernel.safe && sz >= 9 && sz <= 32;
+      if (okSize) { rs.setProperty('--font-size', sz + 'px'); vars.push('--font-size:' + sz + 'px'); } else rs.removeProperty('--font-size');
       const set = async (key, name, id, rest) => {
         if (D.ff && D.ff[key]) { document.fonts.delete(D.ff[key]); D.ff[key] = null; }
         rs.removeProperty('--font-' + key);
         if (kernel.safe || !name) return;
         let fam = null;
-        if (/^[\w-]+\.(woff2?|ttf|otf)$/i.test(name)) {
+        const m = /^[\w-]+\.(woff2?|ttf|otf)$/i.exec(name);
+        if (m) {
           try {
-            const ff = new FontFace(id, await (await kernel.readFile('/sys/fonts/' + name)).arrayBuffer());
-            await ff.load();
-            document.fonts.add(ff);
-            (D.ff = D.ff || {})[key] = ff;
+            const buf = await (await kernel.readFile('/sys/fonts/' + name)).arrayBuffer();
+            if (typeof FontFace !== 'undefined') {
+              const ff = new FontFace(id, buf);
+              await ff.load();
+              document.fonts.add(ff);
+              (D.ff = D.ff || {})[key] = ff;
+            }
             fam = '"' + id + '"';
+            if (buf.byteLength <= 2 * 1024 * 1024) faces.push('@font-face{font-family:"' + id + '";src:url(data:' + FONT_MIME[m[1].toLowerCase()] + ';base64,' + b64(buf) + ')}');
+            else console.warn('[desktop] フォントが大きいので、アプリの中には渡しません（2MB まで）:', name);
           } catch (e) { console.warn('[desktop] フォントを読めません', e); }
         } else if (/^[\w \-]+$/.test(name)) {
           fam = '"' + name + '"';
         }
-        if (fam) rs.setProperty('--font-' + key, fam + ', ' + rest);
+        if (fam) { const v = fam + ', ' + rest; rs.setProperty('--font-' + key, v); vars.push('--font-' + key + ':' + v); }
       };
-      set('ui', f.ui, 'TrainOS-UI', 'system-ui, sans-serif');
-      set('mono', f.mono, 'TrainOS-Mono', 'ui-monospace, monospace');
+      await Promise.all([set('ui', f.ui, 'TrainOS-UI', 'system-ui, sans-serif'), set('mono', f.mono, 'TrainOS-Mono', 'ui-monospace, monospace')]);
+      let css = faces.join('\n') + (vars.length ? ':root{' + vars.join(';') + '}' : '');
+      if (vars.some((v) => v.startsWith('--font-ui'))) css += '\nhtml{font-family:var(--font-ui)}';
+      if (okSize) css += '\nhtml{font-size:var(--font-size)}';
+      D.fontCss = css;
+    };
+
+    // アプリの中にも、ウィンドウテーマ・フォント・カーソルを渡す（kernel.appCss）。開いているアプリには、その場で送る
+    D.syncApps = () => {
+      const win = st.win.textContent.trim(), parts = [];
+      if (!kernel.safe) {
+        if (win) parts.push(win, 'html{color:var(--win-fg,CanvasText);background:var(--win-bg,Canvas)}');
+        if (D.fontCss) parts.push(D.fontCss);
+        if (kernel.cursorCss) parts.push(kernel.cursorCss);
+      }
+      kernel.appCss = parts.join('\n');
+      if (kernel.apps && kernel.apps.broadcast) kernel.apps.broadcast({ type: 'style', css: kernel.appCss });
     };
 
     // 設定をすべて反映する（起動時と、設定が変わったとき）
@@ -286,7 +347,8 @@
         D.applyWallpaper(s.wallpaper),
         D.loadWM(s.windowManager === undefined ? 'floating' : s.windowManager),
       ]);
-      D.applyFont(s.font);
+      await D.applyFont(s.font);
+      D.syncApps();
       if (D.ready) { D.renderIcons(); await D.renderPanel(); }
     };
 
@@ -353,7 +415,10 @@
       panel.style.setProperty('--panel-icon', (+c.iconSize || (fill ? 28 : 44)) + 'px');
       panel.style.setProperty('--panel-size', size + 'px');
       if (c.gap !== undefined) panel.style.setProperty('--panel-gap', (+c.gap || 0) + 'px');
-      if (c.radius !== undefined) panel.style.setProperty('--panel-radius', (+c.radius || 0) + 'px');
+      if (c.radius !== undefined) { // 端いっぱいのパネルは、ここで指定したときだけ角を丸める（テーマの角丸は使わない）
+        panel.style.setProperty('--panel-radius', (+c.radius || 0) + 'px');
+        panel.style.setProperty('--panel-fill-radius', (+c.radius || 0) + 'px');
+      }
       if (c.margin !== undefined) panel.style.setProperty('--panel-margin', (+c.margin || 0) + 'px');
       if (c.opacity !== undefined) panel.style.opacity = String(Math.min(1, Math.max(0.1, +c.opacity || 1)));
       if (fill && !c.autoHide) root.style.setProperty('--inset-' + pos, size + 'px'); // 窓がパネルの下に隠れないように

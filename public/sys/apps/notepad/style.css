@@ -1,7 +1,7 @@
-:root { color-scheme: light dark; }
 html, body { height: 100%; margin: 0; }
-body { display: flex; flex-direction: column; font: 14px system-ui, sans-serif; }
+body { display: flex; flex-direction: column; font-family: var(--font-ui, system-ui, sans-serif); font-size: var(--font-size, 14px); }
 .bar { display: flex; gap: 4px; padding: 4px; }
 #path { flex: 1; min-width: 0; }
-#editor { flex: 1; resize: none; border: 0; padding: 8px; font: 14px/1.5 ui-monospace, monospace; outline: none; }
-#status { padding: 2px 8px; font-size: 12px; opacity: .7; }
+#editor { flex: 1; resize: none; border: 0; padding: 8px; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--font-size, 14px); line-height: 1.5; outline: none; }
+#status { padding: 2px 8px; font-size: calc(var(--font-size, 14px) - 2px); opacity: .7; }
+input, button { font: inherit; }

@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <title>設定</title>
 <style>
-:root { color-scheme: light dark; }
-body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; display: grid; gap: 12px; align-content: start; }
+body { font-family: var(--font-ui, system-ui, sans-serif); font-size: var(--font-size, 14px); margin: 0; padding: 12px; display: grid; gap: 12px; align-content: start; }
 fieldset { border: 1px solid #8886; border-radius: 6px; display: grid; gap: 8px; }
 label { display: flex; gap: 8px; align-items: center; }
 label > select { flex: 1; min-width: 0; }
 input, select, button { font: inherit; }
-.note { font-size: 12px; opacity: .7; }
+.note { font-size: calc(var(--font-size, 14px) - 2px); opacity: .7; }
 #st { opacity: .7; min-height: 1.2em; }
 </style>
 </head>

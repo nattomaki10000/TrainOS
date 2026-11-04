@@ -19,8 +19,16 @@ svg { vertical-align: -.125em; }
 .ico:hover, .ico:focus { background: #fff3; outline: none; }
 
 /* ウィンドウ（色・枠・角丸・影・タイトルバーはウィンドウテーマの変数） */
-.win { position: absolute; display: flex; flex-direction: column; min-width: 200px; min-height: 120px; resize: both; overflow: hidden; background: var(--win-bg, Canvas); color: var(--win-fg, CanvasText); border: var(--win-border, 1px solid #888); border-radius: var(--win-radius, 6px); box-shadow: var(--win-shadow, 0 4px 16px #0006); }
-.win.fixed { resize: none; }
+.win { position: absolute; display: flex; flex-direction: column; min-width: 200px; min-height: 120px; overflow: hidden; background: var(--win-bg, Canvas); color: var(--win-fg, CanvasText); border: var(--win-border, 1px solid #888); border-radius: var(--win-radius, 6px); box-shadow: var(--win-shadow, 0 4px 16px #0006); }
+/* 窓の辺と角をつかんで大きさを変える（8方向）。固定の WM・最大化中・最小化中は隠す */
+.rz { position: absolute; z-index: 3; touch-action: none; }
+.rz-n, .rz-s { left: 10px; right: 10px; height: 6px; cursor: ns-resize; }
+.rz-e, .rz-w { top: 10px; bottom: 10px; width: 6px; cursor: ew-resize; }
+.rz-n { top: 0; } .rz-s { bottom: 0; } .rz-e { right: 0; } .rz-w { left: 0; }
+.rz-ne, .rz-nw, .rz-se, .rz-sw { width: 12px; height: 12px; }
+.rz-ne { top: 0; right: 0; cursor: nesw-resize; } .rz-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.rz-nw { top: 0; left: 0; cursor: nwse-resize; } .rz-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.win.fixed .rz, .win.max .rz, .win.min .rz { display: none; }
 .win.min { display: none; }
 .win.front { outline: var(--win-focus, none); }
 .win.closing { pointer-events: none; }
@@ -35,11 +43,13 @@ svg { vertical-align: -.125em; }
 /* パネル（ドックにもタスクバーにもなる）と、ランチャーのメニュー */
 #panel { position: fixed; z-index: 99998; display: flex; align-items: center; gap: var(--panel-gap, 8px); padding: 6px; box-sizing: border-box; background: var(--panel-bg, var(--bar-bg, #222)); color: var(--panel-fg, var(--bar-fg, #eee)); border-radius: var(--panel-radius, 16px); transition: transform .2s; }
 #panel[hidden] { display: none; }
+/* ガラスなどのテーマ用: パネルとメニューに、ぼかしと縁を付けられる */
+#panel, #menu { -webkit-backdrop-filter: var(--panel-filter, none); backdrop-filter: var(--panel-filter, none); border: var(--panel-border, 0); }
 #panel.p-bottom, #panel.p-top { left: 0; right: 0; margin: 0 auto; width: max-content; max-width: 96vw; }
 #panel.p-left, #panel.p-right { top: 0; bottom: 0; margin: auto 0; height: max-content; max-height: 96vh; flex-direction: column; }
 #panel.p-bottom { bottom: var(--panel-margin, 8px); } #panel.p-top { top: var(--panel-margin, 8px); }
 #panel.p-left { left: var(--panel-margin, 8px); } #panel.p-right { right: var(--panel-margin, 8px); }
-#panel.fill { border-radius: var(--panel-radius, 0); --panel-margin: 0px; }
+#panel.fill { border-radius: var(--panel-fill-radius, 0); --panel-margin: 0px; } /* 端いっぱいのパネルは、テーマの角丸を使わない */
 #panel.fill.p-bottom, #panel.fill.p-top { left: 0; right: 0; width: auto; max-width: none; height: var(--panel-size, 36px); margin: 0; }
 #panel.fill.p-left, #panel.fill.p-right { top: 0; bottom: 0; height: auto; max-height: none; width: var(--panel-size, 36px); margin: 0; }
 #panel.auto.p-bottom { transform: translateY(calc(100% + var(--panel-margin, 8px) - 6px)); }
@@ -70,15 +80,15 @@ svg { vertical-align: -.125em; }
 <body>
 <div id="boot-screen"></div>
 <div id="desktop"></div>
-<script src="sys/icons.js?v=0.4.0"></script>
-<script src="sys/boot.js?v=0.4.0"></script>
-<script src="sys/backend_local.js?v=0.4.0"></script>
-<script src="sys/backend_drive.js?v=0.4.0"></script>
-<script src="sys/skeleton.js?v=0.4.0"></script>
-<script src="sys/app_loader.js?v=0.4.0"></script>
-<script src="sys/desktop.js?v=0.4.0"></script>
-<script src="firebase-config.js?v=0.4.0"></script>
-<script src="sys/kernel.js?v=0.4.0"></script>
+<script src="sys/icons.js?v=0.5.0"></script>
+<script src="sys/boot.js?v=0.5.0"></script>
+<script src="sys/backend_local.js?v=0.5.0"></script>
+<script src="sys/backend_drive.js?v=0.5.0"></script>
+<script src="sys/skeleton.js?v=0.5.0"></script>
+<script src="sys/app_loader.js?v=0.5.0"></script>
+<script src="sys/desktop.js?v=0.5.0"></script>
+<script src="firebase-config.js?v=0.5.0"></script>
+<script src="sys/kernel.js?v=0.5.0"></script>
 <script>TrainOSKernel.boot();</script>
 </body>
 </html>

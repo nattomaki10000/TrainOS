@@ -94,7 +94,7 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
   "font": { "ui": "", "mono": "", "size": 14 } }</code></pre>
 
 <h3>ウィンドウマネージャー（sys/wm/名前.js）</h3>
-<p>ウィンドウの置き方・並べ方・ボタンを決める JS。<code>floating</code>（標準）、<code>tiling</code>、<code>fullscreen</code> が入っている。読めないとき・セーフモードでは、内蔵の最小の WM になる。</p>
+<p>ウィンドウの置き方・並べ方・ボタンを決める JS。<code>floating</code>（標準）、<code>tiling</code>、<code>fullscreen</code> が入っている。読めないとき・セーフモードでは、内蔵の最小の WM になる。窓は、辺と角（8方向）をつかんで大きさを変えられる（<code>resizable: false</code> の WM では無効）。最大化中のボタンは「元に戻す」になる。</p>
 <pre><code>TrainOSWM.register({
   name: 'mine',
   buttons: ['min', 'max', 'close'],   // タイトルバーのボタン
@@ -110,10 +110,13 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <p>色や形は CSS 変数で決める。ウィンドウテーマ（<code>sys/window_themes/</code>）は窓、シェルテーマ（<code>sys/shell_themes/</code>）はデスクトップ・パネル・メニュー・アイコン。それぞれ別に選べる。</p>
 <ul>
   <li>ウィンドウ: <code>--win-bg</code> <code>--win-fg</code> <code>--win-border</code> <code>--win-radius</code> <code>--win-shadow</code> <code>--win-focus</code>（前面の窓の輪郭）<code>--title-bg</code> <code>--title-fg</code> <code>--title-pad</code> <code>--btn-gap</code>。<code>color-scheme</code> も書ける。</li>
-  <li>シェル: <code>--desk-bg</code> <code>--panel-bg</code> <code>--panel-fg</code> <code>--btn-bg</code> <code>--panel-radius</code> <code>--icon-fg</code> <code>--icon-size</code> <code>--icon-cell</code>。</li>
+  <li>シェル: <code>--desk-bg</code> <code>--panel-bg</code> <code>--panel-fg</code> <code>--btn-bg</code> <code>--panel-radius</code>（浮かぶパネルとメニューの角丸。端いっぱいのパネルには使われない）<code>--panel-filter</code>（例: blur(14px)）<code>--panel-border</code>（パネルとメニューのぼかしと縁。ガラスになる）<code>--icon-fg</code> <code>--icon-size</code> <code>--icon-cell</code>。</li>
   <li>タイルの窓の間隔: <code>--wm-gap</code>（例: 8px）。</li>
   <li>部品を直接指定してもよい。id と class は変えない約束: <code>#desktop</code> <code>#wp</code> <code>#icons</code> <code>.ico</code> <code>.win</code>（<code>.t</code> タイトルバー、<code>.btns</code>、<code>.c</code> 中身、<code>.front</code> <code>.min</code>）<code>#panel</code>（<code>.pk</code> <code>.pw</code>）<code>#menu</code>。</li>
 </ul>
+
+<h3>アプリの中にも効く</h3>
+<p>ウィンドウテーマ、フォント、マウスカーソルは、アプリの中にも渡され、設定を変えると開いているアプリにもその場で反映される。アプリは <code>var(--win-bg)</code> <code>var(--win-fg)</code> <code>var(--font-ui)</code> <code>var(--font-mono)</code> <code>var(--font-size)</code> などを使える。自分のアプリで <code>color-scheme</code> を決め打ちしなければ、窓の色に合う。標準アプリは、この変数に従っている。セーフモードでは、何も渡されない。</p>
 
 <h3>パネル（sys/panels/名前.json）: ドックにもタスクバーにもなる</h3>
 <p>1つの仕組みで、画面の端いっぱいのタスクバーにも、浮かぶドックにもなる。標準で <code>bottom</code>（タスクバー）、<code>top</code>（細いバー）、<code>dock</code>（ドック）、<code>left</code>（自動で隠れる縦のドック）。</p>
@@ -142,7 +145,7 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <ul>
   <li><code>sys/keymaps/名前.json</code>: <code>{"Alt+T":{"launch":"terminal"},"Alt+W":"closeWindow"}</code>。アクションは <code>launch</code>（アプリ id と任意の <code>openPath</code>）、<code>open</code>（パス）、<code>closeWindow</code> <code>launcher</code> <code>nextWindow</code> <code>prevWindow</code> <code>toMaster</code> <code>maximize</code> <code>minimize</code>。Alt か Meta を含む組み合わせは、アプリの中でも効く。</li>
   <li><code>sys/iconsets/名前.json</code>: <code>{"cube":{"vb":"0 0 512 512","d":"..."}}</code> のように、アイコン名ごとに SVG のパスを差し替える。</li>
-  <li><code>sys/fonts/</code>: フォントファイル（woff2 / woff / ttf / otf）。設定画面で選ぶか、システムのフォント名を指定する。いまは OS の画面に効く（アプリの中は v0.5.0 の予定）。</li>
+  <li><code>sys/fonts/</code>: フォントファイル（woff2 / woff / ttf / otf）。設定画面で選ぶか、システムのフォント名を指定する。OS の画面とアプリの中の両方に効く（ファイルのフォントを、アプリの中に渡せるのは 2MB まで）。</li>
   <li><code>sys/boot_loader/</code>: 起動画面。<code>sys/components/</code>: 起動時に動く JS（ファイルごとにオンオフ）。<code>sys/apps/</code>: アプリ。</li>
 </ul>
 <p>セーフモード（<code>?mode=safe</code>）では、これらのカスタマイズはすべて使われず、内蔵の見た目・最小の WM・内蔵のパネルで起動する。壊したときの修復用。</p>

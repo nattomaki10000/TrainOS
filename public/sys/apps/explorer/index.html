@@ -4,9 +4,8 @@
 <meta charset="utf-8">
 <title>エクスプローラー</title>
 <style>
-:root { color-scheme: light dark; }
 html, body { height: 100%; margin: 0; }
-body { display: flex; flex-direction: column; font: 13px system-ui, sans-serif; }
+body { display: flex; flex-direction: column; font-family: var(--font-ui, system-ui, sans-serif); font-size: calc(var(--font-size, 14px) - 1px); }
 button { font: inherit; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .bar { display: flex; gap: 4px; padding: 4px; border-bottom: 1px solid #8886; }
 .bar input { flex: 1; min-width: 0; font: inherit; }

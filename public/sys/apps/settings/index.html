@@ -10,6 +10,10 @@ label { display: flex; gap: 8px; align-items: center; }
 label > select { flex: 1; min-width: 0; }
 input, select, button { font: inherit; }
 .note { font-size: calc(var(--font-size, 14px) - 2px); opacity: .7; }
+.krow { display: flex; gap: 6px; align-items: center; }
+.krow .kc { min-width: 9em; font-family: var(--font-mono, ui-monospace, monospace); }
+.krow select { flex: 1; min-width: 0; }
+button { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #st { opacity: .7; min-height: 1.2em; }
 </style>
 </head>
@@ -40,6 +44,9 @@ input, select, button { font: inherit; }
 </fieldset>
 <fieldset><legend>キー割り当て</legend>
   <label><select id="keymap"></select></label>
+  <div id="keys"></div>
+  <label><button id="keyadd"></button></label>
+  <div class="note">キーの欄を押してから、割り当てたいキーを押します（Alt か Meta を含む組み合わせだけ使えます。Esc でやめる）。変更すると sys/keymaps/custom.json に保存され、その割り当てに切り替わります。元に戻すには、上の一覧から別の割り当てを選びます。</div>
 </fieldset>
 <fieldset><legend>起動画面</legend>
   <label><select id="bootLoader"></select></label>
@@ -79,6 +86,103 @@ const SEL = [
   ['bootLoader', 'bootLoaders', '内蔵（シンプル）', () => ''],
 ];
 
+/* ---------- ショートカットの編集 ---------- */
+const ACT_LABEL = { closeWindow: 'ウィンドウを閉じる', maximize: '最大化 / 元に戻す', minimize: '最小化', launcher: 'アプリの一覧を開く', nextWindow: '次のウィンドウ', prevWindow: '前のウィンドウ', toMaster: 'メインのウィンドウにする' };
+const enc = (a) => (typeof a === 'string' ? 'act:' + a : a && a.launch ? 'launch:' + a.launch : a && a.open ? 'open:' + a.open : '');
+const dec = (v) => (v.startsWith('act:') ? v.slice(4) : v.startsWith('launch:') ? { launch: v.slice(7) } : { open: v.slice(5) });
+let curKeys = {}, curInfo = null;
+
+// カーネルの keyCombo と同じ決め方で、キーの組み合わせを文字列にする
+const keyCombo = (e) => {
+  const k = /^Key[A-Z]$/.test(e.code || '') ? e.code.slice(3)
+    : /^Digit\d$/.test(e.code || '') ? e.code.slice(5)
+    : e.code === 'Space' ? 'Space' : e.code === 'Comma' ? ',' : e.code === 'Period' ? '.'
+    : (e.key || '').length === 1 ? e.key.toUpperCase() : (e.key || '');
+  if (!k || ['Control', 'Alt', 'Shift', 'Meta'].includes(k)) return '';
+  return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Meta', k].filter(Boolean).join('+');
+};
+
+// 次に押されたキーの組み合わせを返す（Esc は null）。OS のキー割り当てが動かないよう、キーはここで止める
+const capture = () => new Promise((ok) => {
+  say('割り当てるキーを押してください（Esc でやめる）');
+  const h = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Escape') { window.removeEventListener('keydown', h, true); say(''); return ok(null); }
+    const c = keyCombo(e);
+    if (!c) return;
+    if (!e.altKey && !e.metaKey) return say('Alt か Meta（Win / Cmd）を押しながら押してください（Esc でやめる）');
+    window.removeEventListener('keydown', h, true);
+    say('');
+    ok(c);
+  };
+  window.addEventListener('keydown', h, true);
+});
+
+const saveKeys = async (map) => {
+  try {
+    await TrainOS.sys.saveKeymap('custom', map);
+    say('保存しました（sys/keymaps/custom.json）');
+    await render();
+  } catch (e) { say('失敗: ' + e.message); }
+};
+
+// 順番を保ったまま、キーを入れ替える / 操作を変える / 消す
+const mapWith = (old, combo, action) => {
+  const m = {};
+  for (const [k, v] of Object.entries(curKeys)) {
+    if (k !== old) m[k] = v;
+    else if (action !== null) m[combo] = action;
+  }
+  return m;
+};
+
+function renderKeys(info) {
+  curInfo = info;
+  curKeys = Object.assign({}, info.keys || {});
+  const box = $('keys');
+  box.replaceChildren();
+  for (const [combo, a] of Object.entries(curKeys)) {
+    const row = document.createElement('div');
+    row.className = 'krow';
+    const kb = document.createElement('button');
+    kb.className = 'kc';
+    kb.textContent = combo;
+    kb.title = '押してから、新しいキーを押す';
+    kb.onclick = async () => {
+      const c = await capture();
+      if (!c || c === combo) return;
+      if (Object.prototype.hasOwnProperty.call(curKeys, c)) return say(c + ' には、すでに割り当てがあります');
+      saveKeys(mapWith(combo, c, a));
+    };
+    const sel = document.createElement('select');
+    const cur = enc(a);
+    const opts = [];
+    for (const n of info.actions) opts.push(['act:' + n, ACT_LABEL[n] || n]);
+    for (const x of info.apps) opts.push(['launch:' + x.id, x.name + ' を起動']);
+    if (!opts.some((o) => o[0] === cur)) opts.push([cur, a && a.open ? 'ファイルを開く: ' + a.open : cur.replace(/^act:/, '')]);
+    for (const [v, t] of opts) sel.add(new Option(t, v));
+    sel.value = cur;
+    sel.onchange = () => saveKeys(mapWith(combo, combo, sel.value === cur ? a : dec(sel.value)));
+    const del = document.createElement('button');
+    del.innerHTML = TrainOS.icon('trash');
+    del.title = 'この割り当てを消す';
+    del.onclick = () => saveKeys(mapWith(combo, combo, null));
+    row.append(kb, sel, del);
+    box.append(row);
+  }
+  if (!Object.keys(curKeys).length) box.textContent = '（割り当てなし）';
+}
+
+$('keyadd').innerHTML = TrainOS.icon('plus') + ' ショートカットを追加';
+$('keyadd').onclick = async () => {
+  if (!curInfo || !curInfo.apps.length) return;
+  const c = await capture();
+  if (!c) return;
+  if (Object.prototype.hasOwnProperty.call(curKeys, c)) return say(c + ' には、すでに割り当てがあります');
+  saveKeys(Object.assign({}, curKeys, { [c]: { launch: curInfo.apps[0].id } }));
+};
+
 const set = async (p) => {
   try { await TrainOS.sys.setSettings(p); say('保存しました'); }
   catch (e) { say('失敗: ' + e.message); }
@@ -117,6 +221,8 @@ async function render() {
   }
   if (!info.components.length) $('comp').textContent = '（なし）';
 
+  renderKeys(info);
+
   if (info.backend === 'drive') { $('sync').hidden = false; $('min').value = s.syncMinutes || 10; }
   $('info').textContent = 'TrainOS ' + info.version + ' / 保存先: ' +
     (info.backend === 'drive' ? 'Google Drive' + (info.user ? '（' + info.user + '）' : '') : 'ローカルフォルダ') +
@@ -128,7 +234,7 @@ async function render() {
   TrainOS.app.setTitle('設定');
   let f = await render();
   for (const [id] of SEL) {
-    $(id).onchange = async () => { await set({ [id]: $(id).value || null }); if (id === 'desktopEnv') f = await render(); };
+    $(id).onchange = async () => { await set({ [id]: $(id).value || null }); if (id === 'desktopEnv' || id === 'keymap') f = await render(); };
   }
   $('wp').onchange = () => set({ wallpaper: $('wp').value || null });
   $('wpb').onclick = () => set({ wallpaper: $('wpc').value.trim() || null });

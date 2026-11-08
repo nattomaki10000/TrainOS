@@ -27,8 +27,11 @@
     return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Meta', k].filter(Boolean).join('+');
   };
 
+  // キー割り当てに書ける操作（desktop.act が扱うもの）
+  const ACTIONS = ['closeWindow', 'maximize', 'minimize', 'launcher', 'nextWindow', 'prevWindow', 'toMaster'];
+
   const K = {
-    version: '0.5.0',
+    version: '0.6.0',
     safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
     on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
     emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },
@@ -98,22 +101,29 @@
       return n;
     },
 
-    // フォルダも含めて移動（コピーしてから元を削除。名前の変更にも使う）
-    async move(from, to) {
+    // フォルダも含めてコピー（中身ごと。コピー先がすでにあるときはエラー）
+    async copy(from, to) {
       const a = norm(from), b = norm(to);
-      if (a === '/' || b === a || b.startsWith(a + '/')) throw new Error('移動できません');
+      if (a === '/' || b === a || b.startsWith(a + '/')) throw new Error('コピーできません（自分自身の中には入れられません）');
       if (this.find(b)) throw new Error('すでに存在します: ' + b);
       if (!this.find(a)) throw new Error('見つかりません: ' + a);
-      const copy = async (src, dst) => {
+      const walk = async (src, dst) => {
         const n = this.find(src);
         if (n.isDirectory) {
           await this.createDirectory(dst);
-          for (const c of [...n.children]) await copy(src + '/' + c.name, dst + '/' + c.name);
+          for (const c of [...n.children]) await walk(src + '/' + c.name, dst + '/' + c.name);
         } else {
           await this.writeFile(dst, await this.readFile(src));
         }
       };
-      await copy(a, b);
+      await walk(a, b);
+    },
+
+    // フォルダも含めて移動（コピーしてから元を削除。名前の変更にも使う）
+    async move(from, to) {
+      const a = norm(from), b = norm(to);
+      if (a === '/' || b === a || b.startsWith(a + '/')) throw new Error('移動できません');
+      await this.copy(a, b);
       await this.deleteFile(a);
     },
 
@@ -176,6 +186,8 @@
         components: this.names('/sys/components', /\.js$/),
         keymaps: json('/sys/keymaps'), iconsets: json('/sys/iconsets'),
         fonts: this.names('/sys/fonts', /\.(woff2?|ttf|otf)$/i),
+        keys: this.keys || {}, actions: ACTIONS.slice(),
+        apps: this.apps ? this.apps.list().map((a) => ({ id: a.id, name: a.name, icon: a.icon })) : [],
       };
     },
 
@@ -205,6 +217,24 @@
       if (this.safe || !n || !/^[\w-]+$/.test(n)) return;
       try { this.keys = await this.readJson('/sys/keymaps/' + n + '.json'); }
       catch (e) { console.warn('[kernel] keymap を読めません', e); }
+    },
+
+    // キー割り当てを sys/keymaps/<名前>.json に保存して、その割り当てに切り替える（設定画面のショートカット編集用）。
+    // 書けるのは Alt か Meta を含む組み合わせだけ（アプリの中でも効くのは、この2つだけのため）
+    async saveKeymap(name, map) {
+      if (!/^[\w-]+$/.test(String(name))) throw new Error('不正な名前');
+      if (!map || typeof map !== 'object' || Array.isArray(map)) throw new Error('不正なキー割り当て');
+      const clean = {};
+      for (const [combo, a] of Object.entries(map)) {
+        if (!/^(?:(?:Ctrl|Alt|Shift|Meta)\+)+\S+$/.test(combo) || combo.length > 40 || !/(^|\+)(Alt|Meta)\+/.test(combo)) throw new Error('使えない組み合わせです（Alt か Meta が必要）: ' + combo);
+        if (typeof a === 'string' && /^\w+$/.test(a)) clean[combo] = a;
+        else if (a && typeof a.launch === 'string' && /^[\w-]+$/.test(a.launch)) clean[combo] = typeof a.openPath === 'string' ? { launch: a.launch, openPath: a.openPath } : { launch: a.launch };
+        else if (a && typeof a.open === 'string' && a.open.startsWith('/')) clean[combo] = { open: a.open };
+        else throw new Error('不正な操作です: ' + combo);
+      }
+      await this.writeFile('/sys/keymaps/' + name + '.json', JSON.stringify(clean, null, 2));
+      if (this.settings.keymap !== name) await this.setSettings({ keymap: name });
+      else { await this.loadKeymap(); this.emit('settings'); }
     },
 
     // 割り当てがあれば実行して true を返す（e は KeyboardEvent か、同じ項目を持つ普通のオブジェクト）

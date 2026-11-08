@@ -112,6 +112,7 @@
         setSettings: (patch) => call('setSettings', patch),
         flush: () => call('flush'),
         restoreDefaults: (force) => call('restoreDefaults', force),
+        saveKeymap: (name, map) => call('saveKeymap', name, map),
       },
       fs: {
         readFile: (p) => call('readFile', p),
@@ -122,6 +123,8 @@
         mkdir: (p) => call('createDirectory', p),
         remove: (p) => call('deleteFile', p),
         move: (a, b) => call('moveFile', a, b),
+        copy: (a, b) => call('copyFile', a, b),                                            // フォルダは中身ごと
+        download: (name, c) => call('download', name, c instanceof Blob ? c : new Blob([c])), // ブラウザのダウンロードとして保存する
       },
       app: {
         setTitle: (t) => call('setTitle', t),
@@ -170,6 +173,9 @@
         setTitle:        { perm: null,         fn: (i, t) => { i.title = String(t); if (i.onTitleChange) i.onTitleChange(i.title); } },
         close:           { perm: null,         fn: (i) => this.close(i.id) },
         moveFile:        { perm: 'fs.write',        fn: (i, a, b) => kernel.move(a, b) },
+        copyFile:        { perm: 'fs.write',        fn: (i, a, b) => kernel.copy(a, b) },
+        download:        { perm: 'fs.read',         fn: (i, name, blob) => this.download(name, blob) },
+        saveKeymap:      { perm: 'system.settings', fn: (i, n, m) => kernel.saveKeymap(n, m).then(() => null) },
         getSettings:     { perm: 'system.settings', fn: async () => ({ settings: kernel.settings, info: await kernel.info() }) },
         setSettings:     { perm: 'system.settings', fn: (i, p) => kernel.setSettings(p).then(() => null) },
         flush:           { perm: 'system.settings', fn: () => kernel.flush().then(() => null) },
@@ -288,6 +294,22 @@
       inst.iframe.remove();
       if (inst.onClose) inst.onClose();
       if (this.kernel.emit) this.kernel.emit('apps');
+    }
+
+    // アプリから頼まれたダウンロード。サンドボックスのアプリ自身はダウンロードできない（allow-downloads を付けない）ので、親が代わりに行う
+    download(name, blob) {
+      if (!(blob instanceof Blob)) throw new Error('ダウンロードするデータが不正です');
+      const n = String(name || 'download').replace(/[\\/\u0000-\u001f]/g, '_').slice(0, 200) || 'download';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = n;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return null;
     }
 
     // 開いているアプリすべてにメッセージを送る

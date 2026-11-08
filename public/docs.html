@@ -58,7 +58,10 @@ TrainOS.fs.list(p) / tree(p) / mkdir(p) / remove(p)
 TrainOS.app.setTitle(t) / close() / openFile(p)
 TrainOS.app.onOpen(fn)   // 他から開かれたとき fn(path)
 TrainOS.fs.move(from, to)
+TrainOS.fs.copy(from, to)                // フォルダは中身ごと。コピー先がすでにあるとエラー（fs.write）
+TrainOS.fs.download(name, data)          // ブラウザのダウンロードとして保存（Blob か文字列。fs.read）
 TrainOS.sys.getSettings() / setSettings(patch) / flush()   // system.settings が必要
+TrainOS.sys.saveKeymap(name, map)                          // sys/keymaps/名前.json に保存して切り替える（system.settings）
 TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <ul>
   <li>権限: <code>fs.read</code> <code>fs.write</code> <code>app.launch</code>（<code>openFile</code> 用）、<code>system.settings</code>（設定の読み書き）。<code>app.json</code> で指定すると既定値を置き換える。</li>
@@ -143,7 +146,7 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 
 <h3>そのほか</h3>
 <ul>
-  <li><code>sys/keymaps/名前.json</code>: <code>{"Alt+T":{"launch":"terminal"},"Alt+W":"closeWindow"}</code>。アクションは <code>launch</code>（アプリ id と任意の <code>openPath</code>）、<code>open</code>（パス）、<code>closeWindow</code> <code>launcher</code> <code>nextWindow</code> <code>prevWindow</code> <code>toMaster</code> <code>maximize</code> <code>minimize</code>。Alt か Meta を含む組み合わせは、アプリの中でも効く。</li>
+  <li><code>sys/keymaps/名前.json</code>: <code>{"Alt+T":{"launch":"terminal"},"Alt+W":"closeWindow"}</code>。アクションは <code>launch</code>（アプリ id と任意の <code>openPath</code>）、<code>open</code>（パス）、<code>closeWindow</code> <code>launcher</code> <code>nextWindow</code> <code>prevWindow</code> <code>toMaster</code> <code>maximize</code> <code>minimize</code>。Alt か Meta を含む組み合わせは、アプリの中でも効く。設定画面の「キー割り当て」で編集すると、<code>sys/keymaps/custom.json</code> に保存される（標準の割り当てには手を加えない）。</li>
   <li><code>sys/iconsets/名前.json</code>: <code>{"cube":{"vb":"0 0 512 512","d":"..."}}</code> のように、アイコン名ごとに SVG のパスを差し替える。</li>
   <li><code>sys/fonts/</code>: フォントファイル（woff2 / woff / ttf / otf）。設定画面で選ぶか、システムのフォント名を指定する。OS の画面とアプリの中の両方に効く（ファイルのフォントを、アプリの中に渡せるのは 2MB まで）。</li>
   <li><code>sys/boot_loader/</code>: 起動画面。<code>sys/components/</code>: 起動時に動く JS（ファイルごとにオンオフ）。<code>sys/apps/</code>: アプリ。</li>

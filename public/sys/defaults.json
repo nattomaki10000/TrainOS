@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "files": {
     "sys/animations/fade.css": {
       "v": "0.3.2",
@@ -22,11 +22,22 @@
       "p": []
     },
     "sys/apps/explorer/index.html": {
-      "v": "0.5.0",
-      "h": "9f9c1332380421bf771540d4c0b062c75bd5fa074338b645864f8b92e16d889c",
+      "v": "0.6.0",
+      "h": "ac673469da59f8aae829faf023a2ac02d1264308d159e958a6e6e9ab64378254",
       "p": [
-        "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29"
+        "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29",
+        "9f9c1332380421bf771540d4c0b062c75bd5fa074338b645864f8b92e16d889c"
       ]
+    },
+    "sys/apps/imageviewer/app.json": {
+      "v": "0.6.0",
+      "h": "93b2a1471a3967d50d5dbf6073a983a753fbc8d8a12d6fdd53029ffb4ea98d6b",
+      "p": []
+    },
+    "sys/apps/imageviewer/index.html": {
+      "v": "0.6.0",
+      "h": "63edc97bfb6f95429d3e2616893be8360877959bbde04d55bf01390596654d77",
+      "p": []
     },
     "sys/apps/notepad/app.json": {
       "v": "0.2.0",
@@ -58,15 +69,16 @@
       "p": []
     },
     "sys/apps/settings/index.html": {
-      "v": "0.5.0",
-      "h": "6205003abf340aedf374a011a9e387574c5f8de2c6fee88230c44bdb94066319",
+      "v": "0.6.0",
+      "h": "4e90cd7f81ac02d38e7b392f8dd3b6dcb03454bfc5ee8249b9207a997e54cf4c",
       "p": [
         "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
         "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
         "a7aaca2b2f1199bbe64e606f1bb111d7d4dfe4039ad196b5d996b00994f57a3f",
         "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
         "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b",
-        "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a"
+        "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a",
+        "6205003abf340aedf374a011a9e387574c5f8de2c6fee88230c44bdb94066319"
       ]
     },
     "sys/apps/terminal/app.json": {
@@ -75,12 +87,13 @@
       "p": []
     },
     "sys/apps/terminal/index.html": {
-      "v": "0.5.0",
-      "h": "01f64b10edb3f71d94c8fa79d263a7567946a041fd2d16e568cddde6a3876525",
+      "v": "0.6.0",
+      "h": "eff26e86046e0d6952eb05a0eff7b81b80fcbb7005a07e028aaa4ed42225821a",
       "p": [
         "96d45652e50eaea67c0266f48537e560b22edee5ac89c2ec0fb433b2e10d2c45",
         "d2b70ebfd1dd923f3e27fc906a4ba166e19f7dcb5f6c2f40da4c6e784dc1ceb6",
-        "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b"
+        "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b",
+        "01f64b10edb3f71d94c8fa79d263a7567946a041fd2d16e568cddde6a3876525"
       ]
     },
     "sys/boot_loader/example.js": {

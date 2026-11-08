@@ -5,20 +5,30 @@
 <title>エクスプローラー</title>
 <style>
 html, body { height: 100%; margin: 0; }
-body { display: flex; flex-direction: column; font-family: var(--font-ui, system-ui, sans-serif); font-size: calc(var(--font-size, 14px) - 1px); }
+body { display: flex; flex-direction: column; font-family: var(--font-ui, system-ui, sans-serif); font-size: calc(var(--font-size, 14px) - 1px); user-select: none; }
 button { font: inherit; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+input { font: inherit; user-select: text; }
 .bar { display: flex; gap: 4px; padding: 4px; border-bottom: 1px solid #8886; }
-.bar input { flex: 1; min-width: 0; font: inherit; }
+.bar input { flex: 1; min-width: 0; }
 .main { flex: 1; display: flex; min-height: 0; }
 #tree { width: 150px; overflow: auto; border-right: 1px solid #8886; padding: 4px; }
 #tree div { white-space: nowrap; }
 #tree button, .row { border: 0; background: none; color: inherit; }
-#tree button { padding: 1px 2px; }
-#list { flex: 1; overflow: auto; padding: 4px; }
-.row { display: flex; width: 100%; text-align: left; padding: 3px 6px; border-radius: 4px; }
+#tree button { padding: 1px 2px; border-radius: 4px; }
+#tree button.cur { background: #4a90e233; }
+#list { flex: 1; overflow: auto; padding: 4px; outline: none; }
+.row { display: flex; width: 100%; box-sizing: border-box; text-align: left; padding: 3px 6px; border-radius: 4px; }
 .row.sel { background: #4a90e255; }
+.row.cut { opacity: .5; }
 .row .sz { margin-left: auto; opacity: .6; }
-#msg { padding: 3px 8px; min-height: 1.5em; border-top: 1px solid #8886; }
+.drop { outline: 2px dashed #4a90e2; outline-offset: -2px; background: #4a90e222; }
+#list.drop { outline-offset: -4px; }
+#msg { padding: 3px 8px; min-height: 1.5em; border-top: 1px solid #8886; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#ctx { position: fixed; z-index: 10; min-width: 170px; padding: 4px; border: 1px solid #8886; border-radius: 6px; background: var(--win-bg, #fff); color: var(--win-fg, #111); box-shadow: 0 4px 16px #0006; }
+#ctx button { display: flex; width: 100%; border: 0; background: none; color: inherit; text-align: left; padding: 4px 8px; border-radius: 4px; }
+#ctx button:hover:not(:disabled) { background: #4a90e255; }
+#ctx button:disabled { opacity: .4; cursor: default; }
+#ctx hr { border: 0; border-top: 1px solid #8886; margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -27,22 +37,36 @@ button { font: inherit; display: inline-flex; align-items: center; gap: 6px; cur
   <input id="path" spellcheck="false">
   <button id="mkd" title="新しいフォルダ"></button>
   <button id="mkf" title="新しいファイル"></button>
+  <button id="upl" title="アップロード"></button>
+  <button id="dwn" title="ダウンロード"></button>
   <button id="ren" title="名前の変更"></button>
   <button id="del" title="削除"></button>
   <button id="ref" title="更新"></button>
 </div>
-<div class="main"><div id="tree"></div><div id="list"></div></div>
+<div class="main"><div id="tree"></div><div id="list" tabindex="0"></div></div>
 <div id="msg"></div>
+<div id="ctx" hidden></div>
+<input type="file" id="fup" multiple hidden>
+<input type="file" id="fdir" webkitdirectory hidden>
 <script>
 const $ = (id) => document.getElementById(id);
 const ic = TrainOS.icon;
 const join = (a, b) => (a === '/' ? '' : a) + '/' + b;
-const fmt = (n) => (n == null ? '' : n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB');
-let cwd = '/', sel = null;
+const base = (p) => p.split('/').pop();
+const dirname = (p) => p.replace(/\/[^/]*$/, '') || '/';
+const fmt = (n) => (n == null ? '' : n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB');
+const extOf = (n) => { const m = /\.([^./]+)$/.exec(n); return m ? m[1].toLowerCase() : ''; };
+const iconFor = (it) => it.isDirectory ? 'folder'
+  : /^(png|jpe?g|gif|webp|svg|bmp)$/.test(extOf(it.name)) ? 'file-image'
+  : /^(txt|md|log)$/.test(extOf(it.name)) ? 'file-lines' : 'file';
+const MIME = 'application/x-trainos-paths';
+
+let cwd = '/', items = [], sel = new Set(), anchor = null, clip = null, dragging = null;
 
 const say = (m) => { $('msg').textContent = m || ''; };
+const errMsg = (e) => (e && e.message) || String(e);
 
-// 入力欄をメッセージ欄に出す（prompt は使えないため）
+// メッセージ欄に入力欄を出す（prompt は使えないため）
 const ask = (label, v) => new Promise((ok) => {
   const m = $('msg');
   m.textContent = label + ' ';
@@ -54,9 +78,37 @@ const ask = (label, v) => new Promise((ok) => {
   i.onkeydown = (e) => {
     if (e.key === 'Enter') { m.textContent = ''; ok(i.value.trim()); }
     else if (e.key === 'Escape') { m.textContent = ''; ok(null); }
+    e.stopPropagation();
   };
 });
 
+// メッセージ欄に「はい / やめる」を出す
+const confirmBar = (label, yes) => new Promise((ok) => {
+  const m = $('msg');
+  m.textContent = label + ' ';
+  const done = (v) => { m.textContent = ''; $('list').focus(); ok(v); };
+  const y = document.createElement('button');
+  y.textContent = yes;
+  y.onclick = () => done(true);
+  const n = document.createElement('button');
+  n.textContent = 'やめる';
+  n.onclick = () => done(false);
+  m.onkeydown = (e) => { if (e.key === 'Escape') done(false); };
+  m.append(y, n);
+  n.focus();
+});
+
+const validName = (n) => !!n && !/[\\/]/.test(n) && n !== '.' && n !== '..';
+
+// 同じ名前があれば「名前 (2).拡張子」にする
+function uniqueName(name, taken) {
+  if (!taken.has(name)) return name;
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  for (let i = 2; ; i++) { const c = stem + ' (' + i + ')' + ext; if (!taken.has(c)) return c; }
+}
+
+/* ---------- ツリー（左） ---------- */
 async function drawTree() {
   const root = await TrainOS.fs.tree('/');
   const t = $('tree');
@@ -67,30 +119,64 @@ async function drawTree() {
     const b = document.createElement('button');
     b.innerHTML = ic('folder');
     b.append(' ' + (p === '/' ? '/' : n.name));
+    b.dataset.path = p;
+    if (p === cwd) b.className = 'cur';
     b.onclick = () => load(p);
+    b.oncontextmenu = (e) => { e.preventDefault(); menuAt(e, [
+      { label: '開く', icon: 'folder-open', fn: () => load(p) },
+      { label: '貼り付け', icon: 'paste', fn: () => paste(p), off: !clip },
+      { label: 'ダウンロード（zip）', icon: 'download', fn: () => download([p]), off: p === '/' },
+    ]); };
+    dropTarget(b, () => p);
     row.append(b);
     t.append(row);
     for (const c of n.children || []) if (c.isDirectory) walk(c, join(p, c.name), d + 1);
   })(root, '/', 0);
 }
 
+/* ---------- 一覧（右） ---------- */
 const open = (it) => (it.isDirectory
   ? load(join(cwd, it.name))
-  : TrainOS.app.openFile(join(cwd, it.name)).catch((e) => say(e.message)));
+  : TrainOS.app.openFile(join(cwd, it.name)).catch((e) => say(errMsg(e))));
+
+function paint() {
+  const cut = new Set(clip && clip.cut ? clip.paths : []);
+  for (const r of $('list').children) {
+    r.classList.toggle('sel', sel.has(r.dataset.name));
+    r.classList.toggle('cut', cut.has(join(cwd, r.dataset.name)));
+  }
+}
+
+function pick(name, e) {
+  const order = items.map((i) => i.name);
+  if (e && e.shiftKey && anchor && order.includes(anchor)) {
+    const a = order.indexOf(anchor), b = order.indexOf(name);
+    sel = new Set(order.slice(Math.min(a, b), Math.max(a, b) + 1));
+  } else if (e && (e.ctrlKey || e.metaKey)) {
+    if (sel.has(name)) sel.delete(name); else sel.add(name);
+    anchor = name;
+  } else {
+    sel = new Set([name]);
+    anchor = name;
+  }
+  paint();
+}
 
 async function load(p) {
   try {
-    const items = await TrainOS.fs.list(p);
-    cwd = p; sel = null;
+    const list = await TrainOS.fs.list(p);
+    cwd = p; sel = new Set(); anchor = null;
     $('path').value = p;
     TrainOS.app.setTitle(p);
-    items.sort((a, b) => (b.isDirectory - a.isDirectory) || a.name.localeCompare(b.name));
+    items = list.sort((a, b) => (b.isDirectory - a.isDirectory) || a.name.localeCompare(b.name));
     const l = $('list');
     l.replaceChildren();
     for (const it of items) {
       const r = document.createElement('button');
       r.className = 'row';
-      r.innerHTML = ic(it.isDirectory ? 'folder' : 'file');
+      r.dataset.name = it.name;
+      r.draggable = true;
+      r.innerHTML = ic(iconFor(it));
       const nm = document.createElement('span');
       nm.textContent = ' ' + it.name;
       r.append(nm);
@@ -100,33 +186,355 @@ async function load(p) {
         s.textContent = fmt(it.size);
         r.append(s);
       }
-      r.onclick = () => { sel = it.name; [...l.children].forEach((c) => c.classList.toggle('sel', c === r)); };
+      r.onclick = (e) => pick(it.name, e);
       r.ondblclick = () => open(it);
+      r.oncontextmenu = (e) => {
+        e.preventDefault();
+        if (!sel.has(it.name)) pick(it.name);
+        menuAt(e, itemMenu());
+      };
+      r.ondragstart = (e) => {
+        if (!sel.has(it.name)) pick(it.name);
+        dragging = [...sel].map((n) => join(cwd, n));
+        e.dataTransfer.effectAllowed = 'copyMove';
+        e.dataTransfer.setData(MIME, JSON.stringify(dragging));
+        e.dataTransfer.setData('text/plain', dragging.map(base).join('\n'));
+      };
+      r.ondragend = () => { dragging = null; clearDrop(); };
+      if (it.isDirectory) dropTarget(r, () => join(cwd, it.name));
       l.append(r);
     }
+    paint();
+    for (const b of $('tree').querySelectorAll('button')) b.classList.toggle('cur', b.dataset.path === cwd);
     say(items.length + ' 件');
-  } catch (e) { say(e.message); }
+  } catch (e) { say(errMsg(e)); }
 }
 
-const act = (fn) => async () => {
-  try { await fn(); await load(cwd); await drawTree(); } catch (e) { say(e.message); }
+const reload = async () => { await load(cwd); await drawTree(); };
+
+/* ---------- 右クリックメニュー ---------- */
+function closeMenu() { $('ctx').hidden = true; }
+
+function menuAt(e, entries) {
+  const m = $('ctx');
+  m.replaceChildren();
+  for (const x of entries) {
+    if (x === '-') { m.append(document.createElement('hr')); continue; }
+    const b = document.createElement('button');
+    b.innerHTML = ic(x.icon || '');
+    b.append(' ' + x.label);
+    b.disabled = !!x.off;
+    b.onclick = () => { closeMenu(); Promise.resolve(x.fn()).catch((err) => say(errMsg(err))); };
+    m.append(b);
+  }
+  m.hidden = false;
+  m.style.left = Math.max(0, Math.min(e.clientX, innerWidth - m.offsetWidth - 2)) + 'px';
+  m.style.top = Math.max(0, Math.min(e.clientY, innerHeight - m.offsetHeight - 2)) + 'px';
+}
+
+const selItems = () => items.filter((i) => sel.has(i.name));
+
+function itemMenu() {
+  const one = sel.size === 1 ? selItems()[0] : null;
+  return [
+    { label: '開く', icon: 'folder-open', fn: () => open(one), off: !one },
+    '-',
+    { label: 'ダウンロード', icon: 'download', fn: () => download([...sel].map((n) => join(cwd, n))) },
+    { label: 'コピー', icon: 'copy', fn: () => setClip(false) },
+    { label: '切り取り', icon: 'scissors', fn: () => setClip(true) },
+    { label: '貼り付け（この中に）', icon: 'paste', fn: () => paste(join(cwd, one.name)), off: !(one && one.isDirectory && clip) },
+    '-',
+    { label: '名前の変更', icon: 'pen', fn: rename, off: !one },
+    { label: '削除', icon: 'trash', fn: remove },
+  ];
+}
+
+function blankMenu() {
+  return [
+    { label: '新しいフォルダ', icon: 'folder-plus', fn: newFolder },
+    { label: '新しいファイル', icon: 'file-circle-plus', fn: newFile },
+    '-',
+    { label: 'ファイルをアップロード', icon: 'upload', fn: () => $('fup').click() },
+    { label: 'フォルダをアップロード', icon: 'upload', fn: () => $('fdir').click() },
+    { label: '貼り付け', icon: 'paste', fn: () => paste(cwd), off: !clip },
+    '-',
+    { label: '更新', icon: 'rotate', fn: reload },
+  ];
+}
+
+$('list').oncontextmenu = (e) => {
+  if (e.target !== $('list')) return;
+  e.preventDefault();
+  sel = new Set(); paint();
+  menuAt(e, blankMenu());
 };
-$('mkd').onclick = act(async () => { const n = await ask('フォルダ名:'); if (n) await TrainOS.fs.mkdir(join(cwd, n)); });
-$('mkf').onclick = act(async () => { const n = await ask('ファイル名:'); if (n) await TrainOS.fs.writeFile(join(cwd, n), ''); });
-$('ren').onclick = act(async () => {
-  if (!sel) return say('選択してください');
-  const n = await ask('新しい名前:', sel);
-  if (n && n !== sel) await TrainOS.fs.move(join(cwd, sel), join(cwd, n));
+document.addEventListener('pointerdown', (e) => { if (!$('ctx').contains(e.target)) closeMenu(); }, true);
+window.addEventListener('blur', closeMenu);
+$('list').addEventListener('scroll', closeMenu);
+$('list').addEventListener('pointerdown', (e) => { if (e.target === $('list') && !e.ctrlKey && !e.shiftKey) { sel = new Set(); paint(); } });
+
+/* ---------- 操作 ---------- */
+// 操作して、一覧を読み直す。操作の結果やエラーのメッセージは、読み直しで消さずに残す
+async function run(fn) {
+  say('');
+  let err = null;
+  try { await fn(); } catch (e) { err = errMsg(e); }
+  const note = err || $('msg').textContent;
+  await reload();
+  if (note) say(note);
+}
+
+const newFolder = () => run(async () => {
+  const n = await ask('フォルダ名:');
+  if (!n) return;
+  if (!validName(n)) throw new Error('使えない名前です');
+  await TrainOS.fs.mkdir(join(cwd, n));
 });
-$('del').onclick = act(async () => {
-  if (!sel) return say('選択してください');
-  if ((await ask(sel + ' を削除するには y を入力:')) === 'y') await TrainOS.fs.remove(join(cwd, sel));
+const newFile = () => run(async () => {
+  const n = await ask('ファイル名:');
+  if (!n) return;
+  if (!validName(n)) throw new Error('使えない名前です');
+  await TrainOS.fs.writeFile(join(cwd, n), '');
 });
-$('ref').onclick = act(async () => {});
-$('up').onclick = () => load(cwd.replace(/\/[^/]*$/, '') || '/');
+const rename = () => run(async () => {
+  if (sel.size !== 1) return say('1つだけ選択してください');
+  const old = [...sel][0];
+  const n = await ask('新しい名前:', old);
+  if (!n || n === old) return;
+  if (!validName(n)) throw new Error('使えない名前です');
+  await TrainOS.fs.move(join(cwd, old), join(cwd, n));
+});
+const remove = () => run(async () => {
+  if (!sel.size) return say('選択してください');
+  const names = [...sel];
+  if (!(await confirmBar((names.length === 1 ? names[0] : names.length + ' 件') + ' を削除しますか？', '削除する'))) return;
+  for (const n of names) await TrainOS.fs.remove(join(cwd, n));
+});
+
+function setClip(cut) {
+  if (!sel.size) return say('選択してください');
+  clip = { paths: [...sel].map((n) => join(cwd, n)), cut };
+  paint();
+  say(clip.paths.length + ' 件を' + (cut ? '切り取りました' : 'コピーしました'));
+}
+
+// paths を destDir に移動またはコピーする。移動で同じ名前があるときは失敗として数える。コピーは名前を変えて残す
+async function transfer(paths, destDir, copy) {
+  const taken = new Set((await TrainOS.fs.list(destDir)).map((i) => i.name));
+  let ok = 0;
+  const errs = [];
+  for (const p of paths) {
+    try {
+      const nm = base(p);
+      if (!copy && dirname(p) === destDir) continue;
+      if (!copy && taken.has(nm)) throw new Error(nm + ': 同じ名前があります');
+      const to = copy ? uniqueName(nm, taken) : nm;
+      if (copy) await TrainOS.fs.copy(p, join(destDir, to)); else await TrainOS.fs.move(p, join(destDir, to));
+      taken.add(to);
+      ok++;
+    } catch (e) { errs.push(errMsg(e)); }
+  }
+  say(ok + ' 件を' + (copy ? 'コピー' : '移動') + 'しました' + (errs.length ? '。失敗: ' + errs.join(' / ') : ''));
+}
+
+const paste = (dest) => run(async () => {
+  if (!clip) return;
+  await transfer(clip.paths, dest, !clip.cut);
+  if (clip.cut) clip = null;
+});
+
+/* ---------- ドラッグ＆ドロップ ---------- */
+function clearDrop() { for (const e of document.querySelectorAll('.drop')) e.classList.remove('drop'); }
+
+const hasFiles = (e) => [...(e.dataTransfer.types || [])].includes('Files');
+const hasPaths = (e) => [...(e.dataTransfer.types || [])].includes(MIME);
+
+function dropTarget(el, dest) {
+  el.addEventListener('dragover', (e) => {
+    if (!hasFiles(e) && !hasPaths(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = hasFiles(e) || e.ctrlKey ? 'copy' : 'move';
+    clearDrop();
+    el.classList.add('drop');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drop'));
+  el.addEventListener('drop', (e) => { e.stopPropagation(); onDrop(e, dest()); });
+}
+dropTarget($('list'), () => cwd);
+
+async function onDrop(e, dest) {
+  e.preventDefault();
+  clearDrop();
+  const copy = e.ctrlKey;
+  const raw = hasPaths(e) ? e.dataTransfer.getData(MIME) : '';
+  if (raw) { // 別の窓のエクスプローラーから来たものも受け付ける
+    let paths = [];
+    try { paths = JSON.parse(raw); } catch (x) { return; }
+    if (!Array.isArray(paths) || !paths.every((p) => typeof p === 'string' && p.startsWith('/'))) return;
+    dragging = null;
+    return run(() => transfer(paths, dest, copy));
+  }
+  if (hasFiles(e)) {
+    const entries = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    const files = entries.length ? await entriesToFiles(entries) : [...e.dataTransfer.files].map((f) => ({ rel: f.name, file: f }));
+    return run(() => upload(files, dest));
+  }
+}
+
+// フォルダごとドロップされたものを、{ rel: 'a/b.txt', file } か { rel: 'a/空フォルダ', dir: true } の一覧にする
+async function entriesToFiles(entries) {
+  const out = [];
+  const readAll = (reader) => new Promise((ok, ng) => {
+    const all = [];
+    const step = () => reader.readEntries((r) => { if (r.length) { all.push(...r); step(); } else ok(all); }, ng);
+    step();
+  });
+  const walk = async (en, prefix) => {
+    if (en.isFile) out.push({ rel: prefix + en.name, file: await new Promise((ok, ng) => en.file(ok, ng)) });
+    else {
+      out.push({ rel: prefix + en.name, dir: true });
+      for (const c of await readAll(en.createReader())) await walk(c, prefix + en.name + '/');
+    }
+  };
+  for (const en of entries) await walk(en, '');
+  return out;
+}
+
+/* ---------- アップロード ---------- */
+// files: [{ rel, file | dir }]。一番上の名前は、同じ名前があれば (2) を付けて残す（上書きしない）
+async function upload(files, dest) {
+  if (!files.length) return;
+  const taken = new Set((await TrainOS.fs.list(dest)).map((i) => i.name));
+  const top = new Map();
+  const target = (rel) => {
+    const seg = rel.split('/').filter(Boolean);
+    if (!seg.length || seg.some((s) => s === '.' || s === '..')) throw new Error('不正な名前: ' + rel);
+    if (!top.has(seg[0])) { const u = uniqueName(seg[0], taken); taken.add(u); top.set(seg[0], u); }
+    seg[0] = top.get(seg[0]);
+    return join(dest, seg.join('/'));
+  };
+  // フォルダを先に作る（浅い順）
+  const dirs = new Set();
+  for (const f of files) {
+    const p = target(f.rel);
+    if (f.dir) dirs.add(p);
+    else for (let d = dirname(p); d !== dest && d !== '/'; d = dirname(d)) dirs.add(d);
+  }
+  for (const d of [...dirs].sort((a, b) => a.length - b.length)) await TrainOS.fs.mkdir(d);
+  const list = files.filter((f) => !f.dir);
+  let n = 0;
+  const errs = [];
+  for (const f of list) {
+    say('アップロード中 ' + (n + 1) + ' / ' + list.length + ': ' + f.rel);
+    try { await TrainOS.fs.writeFile(target(f.rel), f.file); n++; } catch (e) { errs.push(f.rel + ': ' + errMsg(e)); }
+  }
+  say(n + ' 件をアップロードしました' + (errs.length ? '。失敗: ' + errs.join(' / ') : ''));
+}
+
+$('fup').onchange = () => { const fs = [...$('fup').files].map((f) => ({ rel: f.name, file: f })); $('fup').value = ''; run(() => upload(fs, cwd)); };
+$('fdir').onchange = () => {
+  const fs = [...$('fdir').files].map((f) => ({ rel: f.webkitRelativePath || f.name, file: f }));
+  $('fdir').value = '';
+  run(() => upload(fs, cwd));
+};
+
+/* ---------- ダウンロード ---------- */
+const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+
+// 圧縮なし（store）の zip を作る。files: [{ name, data: Uint8Array }]。名前は UTF-8
+function makeZip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  const d = new Date();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let off = 0;
+  for (const f of files) {
+    const nm = enc.encode(f.name), crc = crc32(f.data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true);
+    h.setUint32(18, f.data.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, nm, f.data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true);
+    c.setUint32(20, f.data.length, true); c.setUint32(24, f.data.length, true); c.setUint16(28, nm.length, true);
+    c.setUint32(42, off, true);
+    central.push(c.buffer, nm);
+    off += 30 + nm.length + f.data.length;
+  }
+  const csize = central.reduce((s, b) => s + (b.byteLength !== undefined ? b.byteLength : b.length), 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
+}
+
+async function download(paths) {
+  try {
+    if (!paths.length) return say('選択してください');
+    const nodes = await Promise.all(paths.map((p) => TrainOS.fs.tree(p)));
+    if (paths.length === 1 && !nodes[0].isDirectory) {
+      say('ダウンロード中: ' + base(paths[0]));
+      await TrainOS.fs.download(base(paths[0]), await TrainOS.fs.readFile(paths[0]));
+      return say('ダウンロードしました: ' + base(paths[0]));
+    }
+    say('zip を作っています…');
+    const out = [];
+    const walk = async (p, prefix) => {
+      const n = await TrainOS.fs.tree(p);
+      if (n.isDirectory) for (const c of n.children || []) await walk(join(p, c.name), prefix + base(p) + '/');
+      else out.push({ name: prefix + base(p), data: new Uint8Array(await (await TrainOS.fs.readFile(p)).arrayBuffer()) });
+    };
+    for (const p of paths) await walk(p, '');
+    if (!out.length) return say('ファイルがありません（空のフォルダは zip に入りません）');
+    const nm = paths.length === 1 ? base(paths[0]) : 'files';
+    await TrainOS.fs.download(nm + '.zip', makeZip(out));
+    say(out.length + ' 件を ' + nm + '.zip でダウンロードしました');
+  } catch (e) { say(errMsg(e)); }
+}
+
+/* ---------- ボタン・キー ---------- */
+$('mkd').onclick = newFolder;
+$('mkf').onclick = newFile;
+$('upl').onclick = () => $('fup').click();
+$('dwn').onclick = () => download([...sel].map((n) => join(cwd, n)));
+$('ren').onclick = rename;
+$('del').onclick = remove;
+$('ref').onclick = () => run(async () => {});
+$('up').onclick = () => load(dirname(cwd));
 $('path').onkeydown = (e) => { if (e.key === 'Enter') load($('path').value.trim() || '/'); };
 
-for (const [id, name] of [['up', 'arrow-up'], ['mkd', 'folder-plus'], ['mkf', 'file-circle-plus'], ['ren', 'pen'], ['del', 'trash'], ['ref', 'rotate']]) {
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeMenu();
+  if (e.target.tagName === 'INPUT' || e.target.closest('#msg')) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  const move = (d) => {
+    const names = items.map((i) => i.name);
+    if (!names.length) return;
+    const cur = names.indexOf(anchor);
+    const next = names[Math.max(0, Math.min(names.length - 1, cur < 0 ? (d > 0 ? 0 : names.length - 1) : cur + d))];
+    pick(next, { shiftKey: e.shiftKey });
+    const r = [...$('list').children].find((c) => c.dataset.name === next);
+    if (r) r.scrollIntoView({ block: 'nearest' });
+  };
+  if (mod && k === 'a') { sel = new Set(items.map((i) => i.name)); paint(); }
+  else if (mod && k === 'c') setClip(false);
+  else if (mod && k === 'x') setClip(true);
+  else if (mod && k === 'v') paste(cwd);
+  else if (e.key === 'Delete') remove();
+  else if (e.key === 'F2') rename();
+  else if (e.key === 'Enter' && sel.size === 1) open(selItems()[0]);
+  else if (e.key === 'Backspace') load(dirname(cwd));
+  else if (e.key === 'ArrowDown') move(1);
+  else if (e.key === 'ArrowUp') move(-1);
+  else return;
+  e.preventDefault();
+});
+
+for (const [id, name] of [['up', 'arrow-up'], ['mkd', 'folder-plus'], ['mkf', 'file-circle-plus'], ['upl', 'upload'], ['dwn', 'download'], ['ren', 'pen'], ['del', 'trash'], ['ref', 'rotate']]) {
   $(id).innerHTML = ic(name);
 }
 

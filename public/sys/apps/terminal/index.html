@@ -23,9 +23,41 @@ let cwd = '/usr', hist = [], hi = 0;
 const print = (t) => { out.textContent += t + '\n'; out.scrollTop = out.scrollHeight; };
 const prompt = () => { $('pr').textContent = cwd + ' $'; };
 const base = (p) => p.split('/').pop();
-const parse = (l) => [...l.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]);
 const flags = (a) => ({ f: a.filter((x) => x.startsWith('-')).join(''), a: a.filter((x) => !x.startsWith('-')) });
 const node = async (p) => { try { return await TrainOS.fs.tree(p); } catch (e) { return null; } };
+const lines = (s) => { const l = String(s).split('\n'); if (l.length && l[l.length - 1] === '') l.pop(); return l; };
+
+/* ---------- 入力の解析 ---------- */
+// 行を、単語と演算子（| > >>）に分ける。"..." と '...' の中は 1 つの単語。\ は次の1文字をそのまま使う。
+// final が偽のときは、補完のために、いちばん最後の（入力途中の）単語を toks に入れず、partial として返す。
+function scan(line, final) {
+  const toks = [];
+  let cur = null, start = 0, q = null;
+  const push = () => { if (cur !== null) { toks.push({ w: cur }); cur = null; } };
+  for (let i = 0; i < line.length;) {
+    const c = line[i];
+    if (c === '"' || c === "'") {
+      if (cur === null) { cur = ''; start = i; }
+      const j = line.indexOf(c, i + 1);
+      if (j < 0) { cur += line.slice(i + 1); q = c; i = line.length; } else { cur += line.slice(i + 1, j); i = j + 1; }
+    } else if (/\s/.test(c)) { push(); i++; }
+    else if (c === '|') { push(); toks.push({ op: '|' }); i++; }
+    else if (c === '>') {
+      push();
+      if (line[i + 1] === '>') { toks.push({ op: '>>' }); i += 2; } else { toks.push({ op: '>' }); i++; }
+    } else if (c === '\\' && i + 1 < line.length) {
+      if (cur === null) { cur = ''; start = i; }
+      cur += line[i + 1]; i += 2;
+    } else {
+      if (cur === null) { cur = ''; start = i; }
+      cur += c; i++;
+    }
+  }
+  if (final) push();
+  // 入力途中の単語（まだ toks には入っていない）。行が空白で終わっていれば、空の単語
+  const partial = cur !== null ? { start, text: cur, quote: q } : { start: line.length, text: '', quote: null };
+  return { toks, partial };
+}
 
 const abs = (p) => {
   p = p || '.';
@@ -45,19 +77,45 @@ const treeStr = (n, pre) => (n.children || []).map((c, i, arr) => {
 }).join('');
 
 const need = async (p) => { const n = await node(p); if (!n) throw new Error('見つかりません: ' + p); return n; };
-const dest = async (src, to) => { const n = await node(to); return n && n.isDirectory ? to + '/' + base(src) : to; };
+const dest = async (src, to) => { const n = await node(to); return n && n.isDirectory ? (to === '/' ? '' : to) + '/' + base(src) : to; };
 
 const sum = (r) => r.copied.length + ' 件コピー、' + r.updated.length + ' 件更新' +
   (r.conflicts.length ? '\n編集済みのため .new を作成: ' + r.conflicts.join(', ') : '') +
   (r.errors.length ? '\n失敗: ' + r.errors.join(', ') : '');
 
+// ファイル名の一覧（引数）か、パイプで渡された入力から、文字列を作る
+const source = async (files, input) => {
+  if (files.length) { const r = []; for (const f of files) r.push(await TrainOS.fs.readText(abs(f))); return r.join(''); }
+  if (input !== null) return input;
+  throw new Error('ファイル名を指定するか、パイプで入力を渡してください');
+};
+
+// -n 数 / -数 を読む。残りの引数も返す
+const numOpt = (a, d) => {
+  let n = d;
+  const rest = [];
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === '-n') { n = parseInt(a[++i], 10); if (isNaN(n)) throw new Error('-n には数を指定してください'); }
+    else if (/^-\d+$/.test(a[i])) n = Math.abs(parseInt(a[i], 10));
+    else rest.push(a[i]);
+  }
+  return { n, rest };
+};
+
+const globRe = (g) => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+
+// 各コマンドは (引数, パイプの入力 or null) を受け取り、文字列を返す
 const C = {
-  help: () => 'pwd cd ls cat echo mkdir touch rm mv cp tree clear open save restore bootloader version\nリダイレクト: echo テキスト > ファイル（追記は >>）',
+  help: () => 'pwd cd ls cat echo mkdir touch rm mv cp tree find grep head tail wc sort uniq tee clear open save restore bootloader version\n' +
+    'パイプ: コマンド | コマンド（例: ls /sys | grep json | wc -l）\n' +
+    'リダイレクト: echo テキスト > ファイル（追記は >>）\n' +
+    'コピー: cp [-r] 元... 先（フォルダは -r）\n' +
+    'Tab: コマンドとパスの補完（2回押すと候補の一覧）',
   pwd: () => cwd,
   version: async () => 'TrainOS ' + (await TrainOS.sys.getSettings()).info.version,
   cd: async (a) => { const p = abs(a[0] || '~'); const n = await need(p); if (!n.isDirectory) throw new Error('フォルダではありません: ' + p); cwd = p; return ''; },
   ls: async (a) => { const p = abs(flags(a).a[0]); const n = await need(p); return n.isDirectory ? n.children.map((c) => c.name + (c.isDirectory ? '/' : '')).join('\n') : base(p); },
-  cat: async (a) => { const r = []; for (const f of a) r.push(await TrainOS.fs.readText(abs(f))); return r.join(''); },
+  cat: async (a, input) => source(a, input),
   echo: (a) => a.join(' '),
   mkdir: async (a) => { for (const d of a) await TrainOS.fs.mkdir(abs(d)); return ''; },
   touch: async (a) => { for (const f of a) if (!(await node(abs(f)))) await TrainOS.fs.writeFile(abs(f), ''); return ''; },
@@ -65,14 +123,88 @@ const C = {
     const { f, a: ps } = flags(a);
     for (const x of ps) {
       const n = await need(abs(x));
-      if (n.isDirectory && !f.includes('r')) throw new Error(x + ' はフォルダです（-r が必要）');
+      if (n.isDirectory && !/[rR]/.test(f)) throw new Error(x + ' はフォルダです（-r が必要）');
       await TrainOS.fs.remove(abs(x));
     }
     return '';
   },
-  mv: async (a) => { if (a.length !== 2) throw new Error('使い方: mv 元 先'); await TrainOS.fs.move(abs(a[0]), await dest(a[0], abs(a[1]))); return ''; },
-  cp: async (a) => { if (a.length !== 2) throw new Error('使い方: cp 元 先（ファイルのみ）'); await TrainOS.fs.writeFile(await dest(a[0], abs(a[1])), await TrainOS.fs.readFile(abs(a[0]))); return ''; },
+  mv: async (a) => {
+    if (a.length < 2) throw new Error('使い方: mv 元... 先');
+    const to = abs(a[a.length - 1]), srcs = a.slice(0, -1);
+    const dn = await node(to);
+    if (srcs.length > 1 && !(dn && dn.isDirectory)) throw new Error('移動先がフォルダではありません: ' + to);
+    for (const s of srcs) await TrainOS.fs.move(abs(s), await dest(s, to));
+    return '';
+  },
+  cp: async (a) => {
+    const { f, a: ps } = flags(a);
+    if (ps.length < 2) throw new Error('使い方: cp [-r] 元... 先');
+    const to = abs(ps[ps.length - 1]), srcs = ps.slice(0, -1);
+    const dn = await node(to);
+    if (srcs.length > 1 && !(dn && dn.isDirectory)) throw new Error('コピー先がフォルダではありません: ' + to);
+    for (const s of srcs) {
+      const from = abs(s), n = await need(from);
+      const dst = await dest(s, to);
+      if (from === dst) throw new Error(s + ': 同じファイルです');
+      if (!n.isDirectory) await TrainOS.fs.writeFile(dst, await TrainOS.fs.readFile(from)); // ファイルは、あれば上書き
+      else if (!/[rR]/.test(f)) throw new Error(s + ' はフォルダです（-r が必要）');
+      else await TrainOS.fs.copy(from, dst);                                              // フォルダは中身ごと
+    }
+    return '';
+  },
   tree: async (a) => { const p = abs(a[0]); return p + '\n' + treeStr(await need(p), ''); },
+  find: async (a) => {
+    let p = '.', name = null;
+    const rest = [...a];
+    while (rest.length) { const x = rest.shift(); if (x === '-name') name = rest.shift(); else p = x; }
+    if (a.includes('-name') && !name) throw new Error('-name にはパターンを指定してください');
+    const root = abs(p), re = name ? globRe(name) : null, res = [];
+    (function walk(n, path) {
+      if (!re || re.test(n.name)) res.push(path);
+      for (const c of n.children || []) walk(c, (path === '/' ? '' : path) + '/' + c.name);
+    })(await need(root), root);
+    return res.join('\n');
+  },
+  grep: async (a, input) => {
+    const { f, a: ps } = flags(a);
+    if (!ps.length) throw new Error('使い方: grep [-i] [-v] [-n] パターン [ファイル...]');
+    let re;
+    try { re = new RegExp(ps[0], /i/.test(f) ? 'i' : ''); } catch (e) { throw new Error('パターンが不正です: ' + ps[0]); }
+    const files = ps.slice(1), res = [];
+    const scanText = (text, label) => lines(text).forEach((l, i) => {
+      if (re.test(l) === !/v/.test(f)) res.push((label ? label + ':' : '') + (/n/.test(f) ? (i + 1) + ':' : '') + l);
+    });
+    if (files.length) for (const x of files) scanText(await TrainOS.fs.readText(abs(x)), files.length > 1 ? x : '');
+    else scanText(await source([], input), '');
+    return res.join('\n');
+  },
+  head: async (a, input) => { const { n, rest } = numOpt(a, 10); return lines(await source(rest, input)).slice(0, n).join('\n'); },
+  tail: async (a, input) => { const { n, rest } = numOpt(a, 10); const l = lines(await source(rest, input)); return (n ? l.slice(-n) : []).join('\n'); },
+  wc: async (a, input) => {
+    const { f, a: ps } = flags(a);
+    const t = await source(ps, input);
+    const v = { l: lines(t).length, w: (t.match(/\S+/g) || []).length, c: t.length };
+    const keys = ['l', 'w', 'c'].filter((k) => f.includes(k));
+    return (keys.length ? keys : ['l', 'w', 'c']).map((k) => v[k]).join(' ');
+  },
+  sort: async (a, input) => {
+    const { f, a: ps } = flags(a);
+    const l = lines(await source(ps, input));
+    l.sort(/n/.test(f) ? (x, y) => (parseFloat(x) || 0) - (parseFloat(y) || 0) : (x, y) => (x < y ? -1 : x > y ? 1 : 0));
+    if (/r/.test(f)) l.reverse();
+    return l.join('\n');
+  },
+  uniq: async (a, input) => lines(await source(a, input)).filter((l, i, arr) => i === 0 || l !== arr[i - 1]).join('\n'),
+  tee: async (a, input) => {
+    const { f, a: ps } = flags(a);
+    if (input === null) throw new Error('tee はパイプの途中で使います（例: ls | tee 一覧.txt）');
+    for (const x of ps) {
+      const p = abs(x);
+      const pre = /a/.test(f) && (await node(p)) ? await TrainOS.fs.readText(p) : '';
+      await TrainOS.fs.writeFile(p, pre + input + (input && !input.endsWith('\n') ? '\n' : ''));
+    }
+    return input;
+  },
   clear: () => { out.textContent = ''; return ''; },
   open: async (a) => { await TrainOS.app.openFile(abs(a[0])); return ''; },
   save: async () => { await TrainOS.sys.flush(); return '保存しました'; },
@@ -85,15 +217,31 @@ const C = {
   },
 };
 
+/* ---------- 実行（パイプとリダイレクト）---------- */
 async function run(line) {
-  const t = parse(line);
-  if (!t.length) return;
-  let redir = null, mode = '';
-  const i = t.findIndex((x) => x === '>' || x === '>>');
-  if (i >= 0) { mode = t[i]; redir = t[i + 1]; t.splice(i); if (!redir) throw new Error('リダイレクト先がありません'); }
-  const [cmd, ...args] = t;
-  if (!Object.prototype.hasOwnProperty.call(C, cmd)) throw new Error(cmd + ': コマンドが見つかりません（help）');
-  const res = await C[cmd](args);
+  const { toks } = scan(line, true);
+  if (!toks.length) return;
+  const segs = [[]];
+  for (const t of toks) { if (t.op === '|') segs.push([]); else segs[segs.length - 1].push(t); }
+  let input = null, res = '', redir = null, mode = '';
+  for (let s = 0; s < segs.length; s++) {
+    const words = [];
+    const seg = segs[s];
+    for (let i = 0; i < seg.length; i++) {
+      const t = seg[i];
+      if (t.op) { // > か >>
+        if (s !== segs.length - 1) throw new Error('リダイレクトは、パイプの最後のコマンドだけで使えます');
+        const nx = seg[i + 1];
+        if (!nx || nx.op) throw new Error('リダイレクト先がありません');
+        redir = nx.w; mode = t.op; i++;
+      } else words.push(t.w);
+    }
+    if (!words.length) throw new Error(segs.length > 1 ? 'パイプの前後にコマンドが必要です' : 'コマンドがありません');
+    const [cmd, ...args] = words;
+    if (!Object.prototype.hasOwnProperty.call(C, cmd)) throw new Error(cmd + ': コマンドが見つかりません（help）');
+    res = await C[cmd](args, input);
+    input = String(res);
+  }
   if (redir) {
     const p = abs(redir);
     const pre = mode === '>>' && (await node(p)) ? await TrainOS.fs.readText(p) : '';
@@ -103,7 +251,68 @@ async function run(line) {
   }
 }
 
+/* ---------- Tab 補完 ---------- */
+const esc = (s) => s.replace(/([\s"'\\|>])/g, '\\$1');
+const lcp = (xs) => xs.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });
+let lastTab = null;
+
+async function complete() {
+  const head = inp.value.slice(0, inp.selectionStart), tail = inp.value.slice(inp.selectionStart);
+  const { toks, partial } = scan(head);
+  // 最後の | より後ろ（いまのコマンド）の、入力済みの単語（リダイレクト先は除く）
+  const seg = toks.slice(toks.map((t) => t.op).lastIndexOf('|') + 1);
+  const segWords = seg.filter((t, i) => !t.op && !(seg[i - 1] && seg[i - 1].op));
+  const last = toks[toks.length - 1];
+  const afterRedir = !!(last && last.op && last.op !== '|');
+  const cmdPos = segWords.length === 0 && !afterRedir;   // コマンド名の位置
+  const cmdName = segWords.length ? segWords[0].w : null;
+
+  let dirPart = '', names = [], isDir = {}, namePart = partial.text;
+  if (cmdPos) {
+    names = Object.keys(C).filter((n) => n.startsWith(namePart));
+    names.forEach((n) => { isDir[n] = false; });
+  } else {
+    const k = partial.text.lastIndexOf('/');
+    dirPart = k >= 0 ? partial.text.slice(0, k + 1) : '';
+    namePart = partial.text.slice(k + 1);
+    const n = await node(abs(dirPart || '.'));
+    if (!n || !n.isDirectory) return;
+    for (const c of n.children) {
+      if (!c.name.startsWith(namePart) || (c.name.startsWith('.') && !namePart.startsWith('.'))) continue;
+      if (cmdName === 'cd' && !c.isDirectory) continue;
+      names.push(c.name);
+      isDir[c.name] = c.isDirectory;
+    }
+  }
+  names.sort();
+  if (!names.length) return;
+
+  const q = partial.quote;
+  const fix = (s) => (q ? s : esc(s));
+  let rep;
+  if (names.length === 1) {
+    const n = names[0];
+    rep = fix(dirPart + n) + (isDir[n] ? '/' : (q ? q : '') + ' ');
+  } else {
+    const common = lcp(names);
+    if (common.length > namePart.length) rep = fix(dirPart + common);
+    else {
+      if (lastTab === head) { // 2回目: 候補を出す
+        print($('pr').textContent + ' ' + inp.value);
+        print(names.map((n) => n + (isDir[n] ? '/' : '')).join('  '));
+      }
+      lastTab = head;
+      return;
+    }
+  }
+  inp.value = head.slice(0, partial.start) + (q || '') + rep + tail;
+  const pos = (head.slice(0, partial.start) + (q || '') + rep).length;
+  inp.setSelectionRange(pos, pos);
+  lastTab = null;
+}
+
 inp.onkeydown = async (e) => {
+  if (e.key !== 'Tab') lastTab = null;
   if (e.key === 'Enter') {
     const l = inp.value;
     inp.value = '';
@@ -114,6 +323,9 @@ inp.onkeydown = async (e) => {
       try { await run(l); } catch (err) { print(err.message); }
     }
     prompt();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    try { await complete(); } catch (err) { /* 補完できなくても入力は壊さない */ }
   } else if (e.key === 'ArrowUp') {
     hi = Math.max(hi - 1, 0); inp.value = hist[hi] || ''; e.preventDefault();
   } else if (e.key === 'ArrowDown') {

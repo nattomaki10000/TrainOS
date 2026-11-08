@@ -1,0 +1,11 @@
+{
+  "id": "imageviewer",
+  "name": "画像ビューア",
+  "version": "0.6.0",
+  "icon": "image",
+  "entry": "index.html",
+  "extensions": ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"],
+  "permissions": ["fs.read"],
+  "singleInstance": false,
+  "window": { "width": 640, "height": 480 }
+}

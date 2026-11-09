@@ -240,6 +240,8 @@ function itemMenu() {
     { label: '開く', icon: 'folder-open', fn: () => open(one), off: !one },
     '-',
     { label: 'ダウンロード', icon: 'download', fn: () => download([...sel].map((n) => join(cwd, n))) },
+    { label: 'zip に圧縮', icon: 'download', fn: compress },
+    { label: 'zip を展開', icon: 'upload', fn: extract, off: !(one && !one.isDirectory && extOf(one.name) === 'zip') },
     { label: 'コピー', icon: 'copy', fn: () => setClip(false) },
     { label: '切り取り', icon: 'scissors', fn: () => setClip(true) },
     { label: '貼り付け（この中に）', icon: 'paste', fn: () => paste(join(cwd, one.name)), off: !(one && one.isDirectory && clip) },
@@ -443,33 +445,74 @@ $('fdir').onchange = () => {
 const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 
-// 圧縮なし（store）の zip を作る。files: [{ name, data: Uint8Array }]。名前は UTF-8
-function makeZip(files) {
+// deflate（ブラウザ内蔵の CompressionStream）。使えない環境では、圧縮なし（store）にする
+const pipe = async (u8, ts) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(ts)).arrayBuffer());
+async function deflateRaw(u8) { return pipe(u8, new CompressionStream('deflate-raw')); }
+async function inflateRaw(u8) { return pipe(u8, new DecompressionStream('deflate-raw')); }
+
+// zip を作る。files: [{ name, data: Uint8Array }]。名前は UTF-8
+async function makeZip(files) {
   const enc = new TextEncoder(), parts = [], central = [];
   const d = new Date();
   const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
   const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const canDeflate = typeof CompressionStream === 'function';
   let off = 0;
   for (const f of files) {
     const nm = enc.encode(f.name), crc = crc32(f.data);
+    let body = f.data, method = 0;
+    if (canDeflate && f.data.length) { const z = await deflateRaw(f.data); if (z.length < f.data.length) { body = z; method = 8; } }
     const h = new DataView(new ArrayBuffer(30));
-    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, method, true);
     h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true);
-    h.setUint32(18, f.data.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
-    parts.push(h.buffer, nm, f.data);
+    h.setUint32(18, body.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, nm, body);
     const c = new DataView(new ArrayBuffer(46));
-    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, method, true);
     c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true);
-    c.setUint32(20, f.data.length, true); c.setUint32(24, f.data.length, true); c.setUint16(28, nm.length, true);
+    c.setUint32(20, body.length, true); c.setUint32(24, f.data.length, true); c.setUint16(28, nm.length, true);
     c.setUint32(42, off, true);
     central.push(c.buffer, nm);
-    off += 30 + nm.length + f.data.length;
+    off += 30 + nm.length + body.length;
   }
-  const csize = central.reduce((s, b) => s + (b.byteLength !== undefined ? b.byteLength : b.length), 0);
+  const csize = central.reduce((s, b) => s + b.byteLength, 0);
   const e = new DataView(new ArrayBuffer(22));
   e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
   e.setUint32(12, csize, true); e.setUint32(16, off, true);
   return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
+}
+
+// zip の目次（中央ディレクトリ）を読む。ZIP64 は未対応
+function zipEntries(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let e = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 22 - 65535); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw new Error('zip として読めません');
+  const n = dv.getUint16(e + 10, true), cdOff = dv.getUint32(e + 16, true);
+  if (n === 0xffff || cdOff === 0xffffffff) throw new Error('ZIP64 の zip には未対応です');
+  const out = [];
+  let p = cdOff;
+  for (let i = 0; i < n; i++) {
+    if (p + 46 > u8.length || dv.getUint32(p, true) !== 0x02014b50) throw new Error('zip が壊れています');
+    const flags = dv.getUint16(p + 8, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    // 名前が UTF-8 でない古い zip は、日本語環境の Shift_JIS として読む
+    const name = new TextDecoder(flags & 0x800 ? 'utf-8' : 'shift_jis').decode(u8.subarray(p + 46, p + 46 + nl));
+    out.push({ name, flags, method: dv.getUint16(p + 10, true), crc: dv.getUint32(p + 16, true), cs: dv.getUint32(p + 20, true), us: dv.getUint32(p + 24, true), off: dv.getUint32(p + 42, true) });
+    p += 46 + nl + xl + cl;
+  }
+  return out;
+}
+
+// paths（ファイルとフォルダ）の中のファイルを、zip 用の { name, data } の一覧にする
+async function gather(paths) {
+  const out = [];
+  const walk = async (p, prefix) => {
+    const n = await TrainOS.fs.tree(p);
+    if (n.isDirectory) for (const c of n.children || []) await walk(join(p, c.name), prefix + base(p) + '/');
+    else out.push({ name: prefix + base(p), data: new Uint8Array(await (await TrainOS.fs.readFile(p)).arrayBuffer()) });
+  };
+  for (const p of paths) await walk(p, '');
+  return out;
 }
 
 async function download(paths) {
@@ -482,19 +525,80 @@ async function download(paths) {
       return say('ダウンロードしました: ' + base(paths[0]));
     }
     say('zip を作っています…');
-    const out = [];
-    const walk = async (p, prefix) => {
-      const n = await TrainOS.fs.tree(p);
-      if (n.isDirectory) for (const c of n.children || []) await walk(join(p, c.name), prefix + base(p) + '/');
-      else out.push({ name: prefix + base(p), data: new Uint8Array(await (await TrainOS.fs.readFile(p)).arrayBuffer()) });
-    };
-    for (const p of paths) await walk(p, '');
+    const out = await gather(paths);
     if (!out.length) return say('ファイルがありません（空のフォルダは zip に入りません）');
     const nm = paths.length === 1 ? base(paths[0]) : 'files';
-    await TrainOS.fs.download(nm + '.zip', makeZip(out));
+    await TrainOS.fs.download(nm + '.zip', await makeZip(out));
     say(out.length + ' 件を ' + nm + '.zip でダウンロードしました');
   } catch (e) { say(errMsg(e)); }
 }
+
+/* ---------- zip の圧縮と展開 ---------- */
+// 選択したものを、このフォルダの zip にする（同じ名前があれば (2) を付ける）
+const compress = () => run(async () => {
+  const paths = [...sel].map((n) => join(cwd, n));
+  if (!paths.length) return say('選択してください');
+  say('圧縮しています…');
+  const out = await gather(paths);
+  if (!out.length) throw new Error('ファイルがありません（空のフォルダは zip に入りません）');
+  const taken = new Set((await TrainOS.fs.list(cwd)).map((i) => i.name));
+  const nm = uniqueName((paths.length === 1 ? base(paths[0]) : 'files') + '.zip', taken);
+  await TrainOS.fs.writeFile(join(cwd, nm), await makeZip(out));
+  say(out.length + ' 件を ' + nm + ' に圧縮しました');
+});
+
+const MAX_UNZIP = 1024 * 1024 * 1024; // 展開後の合計の上限（zip 爆弾よけ）
+
+// zip を、同じ場所の「zip の名前のフォルダ」に展開する。壊れた項目や危険な名前は飛ばして、数を知らせる
+const extract = () => run(async () => {
+  const one = selItems()[0];
+  if (sel.size !== 1 || !one || one.isDirectory || extOf(one.name) !== 'zip') throw new Error('zip ファイルを1つ選択してください');
+  const path = join(cwd, one.name);
+  say('展開しています…');
+  const u8 = new Uint8Array(await (await TrainOS.fs.readFile(path)).arrayBuffer());
+  const ents = zipEntries(u8);
+  if (ents.reduce((s, x) => s + x.us, 0) > MAX_UNZIP) throw new Error('展開後が大きすぎます（1GB まで）');
+  const taken = new Set((await TrainOS.fs.list(cwd)).map((i) => i.name));
+  const split = (n) => n.replace(/\\/g, '/').split('/').filter((x) => x && x !== '.');
+  // 中身が1つのフォルダだけなら、そのフォルダをここに展開する（zip の名前のフォルダで二重にしない）
+  const tops = new Set(ents.map((x) => split(x.name)[0]).filter(Boolean));
+  const single = tops.size === 1 && ents.some((x) => /[\\/]$/.test(x.name) || split(x.name).length > 1) && ![...tops][0].includes(':');
+  const top = single ? uniqueName([...tops][0], taken) : null;
+  const root = single ? join(cwd, top) : join(cwd, uniqueName(one.name.replace(/\.zip$/i, '') || 'zip', taken));
+  await TrainOS.fs.mkdir(root);
+  const made = new Set([root]);
+  const ensure = async (dir) => { // root の下の入れ子のフォルダを、浅い方から作る
+    const chain = [];
+    for (let d = dir; !made.has(d); d = dirname(d)) chain.unshift(d);
+    for (const d of chain) { await TrainOS.fs.mkdir(d); made.add(d); }
+  };
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let ok = 0, skipped = 0;
+  const why = [];
+  for (const en of ents) {
+    const isDir = /[\\/]$/.test(en.name);
+    const segs = split(en.name);
+    try {
+      if (!segs.length) continue;
+      if (single) segs.shift();
+      if (!segs.length) continue;
+      if (segs.includes('..') || /^[A-Za-z]:$/.test(segs[0])) throw new Error('危険な名前');
+      const dest = join(root, segs.join('/'));
+      if (isDir) { await ensure(dest); continue; }
+      if (en.flags & 1) throw new Error('暗号化されています');
+      if (en.method !== 0 && en.method !== 8) throw new Error('未対応の圧縮方式');
+      if (en.off + 30 > u8.length || dv.getUint32(en.off, true) !== 0x04034b50) throw new Error('壊れています');
+      const start = en.off + 30 + dv.getUint16(en.off + 26, true) + dv.getUint16(en.off + 28, true);
+      const raw = u8.subarray(start, start + en.cs);
+      const data = en.method === 0 ? raw : await inflateRaw(raw);
+      if (data.length !== en.us || crc32(data) !== en.crc) throw new Error('壊れています（CRC が合いません）');
+      await ensure(dirname(dest));
+      await TrainOS.fs.writeFile(dest, new Blob([data]));
+      ok++;
+    } catch (e) { skipped++; if (why.length < 3) why.push(en.name + ': ' + errMsg(e)); }
+  }
+  say(ok + ' 件を ' + base(root) + ' に展開しました' + (skipped ? '。飛ばした項目 ' + skipped + ' 件（' + why.join(' / ') + '）' : ''));
+});
 
 /* ---------- ボタン・キー ---------- */
 $('mkd').onclick = newFolder;

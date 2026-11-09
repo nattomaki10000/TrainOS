@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.6.1",
   "files": {
     "sys/animations/fade.css": {
       "v": "0.3.2",
@@ -23,10 +23,11 @@
     },
     "sys/apps/explorer/index.html": {
       "v": "0.6.0",
-      "h": "ac673469da59f8aae829faf023a2ac02d1264308d159e958a6e6e9ab64378254",
+      "h": "12e060f3364149656bd82d45bbcf591bee634529906861875955a2ba4241ec10",
       "p": [
         "3db0bfd18024de3c6fff42bc290ecd81c6099a69ea7a6e49382ebb102f3ecd29",
-        "9f9c1332380421bf771540d4c0b062c75bd5fa074338b645864f8b92e16d889c"
+        "9f9c1332380421bf771540d4c0b062c75bd5fa074338b645864f8b92e16d889c",
+        "ac673469da59f8aae829faf023a2ac02d1264308d159e958a6e6e9ab64378254"
       ]
     },
     "sys/apps/imageviewer/app.json": {
@@ -36,8 +37,10 @@
     },
     "sys/apps/imageviewer/index.html": {
       "v": "0.6.0",
-      "h": "63edc97bfb6f95429d3e2616893be8360877959bbde04d55bf01390596654d77",
-      "p": []
+      "h": "6919d92a097001a3ecc3ac70b4d600f523b260c3e99f763fdfacbf725e13d742",
+      "p": [
+        "63edc97bfb6f95429d3e2616893be8360877959bbde04d55bf01390596654d77"
+      ]
     },
     "sys/apps/notepad/app.json": {
       "v": "0.2.0",

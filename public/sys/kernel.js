@@ -31,7 +31,7 @@
   const ACTIONS = ['closeWindow', 'maximize', 'minimize', 'launcher', 'nextWindow', 'prevWindow', 'toMaster'];
 
   const K = {
-    version: '0.6.0',
+    version: '0.6.1',
     safe: false, settings: {}, index: null, backend: null, desktop: null, apps: null, _ev: {},
     on(n, f) { (this._ev[n] = this._ev[n] || []).push(f); },
     emit(n, ...a) { for (const f of this._ev[n] || []) { try { f(...a); } catch (e) { console.warn(e); } } },

@@ -1,0 +1,5 @@
+{
+  "_comment": "起動時に開くアプリの例。\"enabled\": true にすると、起動のたびにターミナルが開く。{ \"open\": \"/usr/documents/memo.txt\" } でファイルも開ける。配列で複数書いてもよい。書き方は docs.html の「起動時に開くアプリ」を参照",
+  "app": "terminal",
+  "enabled": false
+}

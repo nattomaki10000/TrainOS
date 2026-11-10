@@ -81,6 +81,8 @@ const dest = async (src, to) => { const n = await node(to); return n && n.isDire
 
 const sum = (r) => r.copied.length + ' 件コピー、' + r.updated.length + ' 件更新' +
   (r.conflicts.length ? '\n編集済みのため .new を作成: ' + r.conflicts.join(', ') : '') +
+  (r.removed && r.removed.length ? '\n古い標準ファイルを削除: ' + r.removed.join(', ') : '') +
+  (r.kept && r.kept.length ? '\n手を加えてあるので、古いまま残した: ' + r.kept.join(', ') : '') +
   (r.errors.length ? '\n失敗: ' + r.errors.join(', ') : '');
 
 // ファイル名の一覧（引数）か、パイプで渡された入力から、文字列を作る

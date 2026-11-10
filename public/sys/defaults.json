@@ -1,5 +1,5 @@
 {
-  "version": "0.6.1",
+  "version": "0.7.0",
   "files": {
     "sys/animations/fade.css": {
       "v": "0.3.2",
@@ -72,8 +72,8 @@
       "p": []
     },
     "sys/apps/settings/index.html": {
-      "v": "0.6.0",
-      "h": "4e90cd7f81ac02d38e7b392f8dd3b6dcb03454bfc5ee8249b9207a997e54cf4c",
+      "v": "0.7.0",
+      "h": "45836e5f9fc12ad74e18ba45cd1b5653111812675a6cf85424394b1e1a748486",
       "p": [
         "b96e08c7f3e41020cd360552e88d17498100a37f71824f5380ae68cc4dabe8c1",
         "ddd15c27df9e34d819f9f0ab921676befa25c7a6d884ddb84cb4c148c882cd16",
@@ -81,7 +81,8 @@
         "f209495697b30683b63b4fadf72fedd18258183be9fa5d97cef681f654592ab7",
         "b99b7f4a90a14b8264cf1d8f84c9b65d8a7011190c3cb8910c63bf6e1516e82b",
         "6444942f3eab57985b5361566f1583e4f65744fbfb5280237d9b88a23c71846a",
-        "6205003abf340aedf374a011a9e387574c5f8de2c6fee88230c44bdb94066319"
+        "6205003abf340aedf374a011a9e387574c5f8de2c6fee88230c44bdb94066319",
+        "4e90cd7f81ac02d38e7b392f8dd3b6dcb03454bfc5ee8249b9207a997e54cf4c"
       ]
     },
     "sys/apps/terminal/app.json": {
@@ -90,13 +91,14 @@
       "p": []
     },
     "sys/apps/terminal/index.html": {
-      "v": "0.6.0",
-      "h": "eff26e86046e0d6952eb05a0eff7b81b80fcbb7005a07e028aaa4ed42225821a",
+      "v": "0.7.0",
+      "h": "ed02b403fc30fcc78eda74623fe08c58ab6b99ceabea2e2724157e34b72e4928",
       "p": [
         "96d45652e50eaea67c0266f48537e560b22edee5ac89c2ec0fb433b2e10d2c45",
         "d2b70ebfd1dd923f3e27fc906a4ba166e19f7dcb5f6c2f40da4c6e784dc1ceb6",
         "2a518b6aff323357d18fe359650c5848a587d4558e948df3112d577d187b0c9b",
-        "01f64b10edb3f71d94c8fa79d263a7567946a041fd2d16e568cddde6a3876525"
+        "01f64b10edb3f71d94c8fa79d263a7567946a041fd2d16e568cddde6a3876525",
+        "eff26e86046e0d6952eb05a0eff7b81b80fcbb7005a07e028aaa4ed42225821a"
       ]
     },
     "sys/boot_loader/example.js": {
@@ -110,9 +112,11 @@
       "p": []
     },
     "sys/components/hello.js": {
-      "v": "0.3.0",
-      "h": "74a87ce848060bd01199f9b8b8f1fed893d75975e307ce1bcc645a0a7f36dcec",
-      "p": []
+      "v": "0.7.0",
+      "h": "d49ab7b51ab5e2c7e16a4412a1ac2045bc09c0b08a6fba7e8e963b8a30b57a66",
+      "p": [
+        "74a87ce848060bd01199f9b8b8f1fed893d75975e307ce1bcc645a0a7f36dcec"
+      ]
     },
     "sys/cursors/big.json": {
       "v": "0.3.2",
@@ -203,6 +207,26 @@
       "h": "9f382860dd69ebdb29d37f3b998896f7eb10c1a0025114ecb3463b5c549f1a8c",
       "p": []
     },
+    "sys/sounds/README.txt": {
+      "v": "0.7.0",
+      "h": "a55006d08742b94633d93863215d205297e46abf8417fe9709b9188b827ab1e3",
+      "p": []
+    },
+    "sys/sounds/default.json": {
+      "v": "0.7.0",
+      "h": "ca4452cbf0667ad4a275a2452c9f8cc8e87fcd124063ce46be7bc291b5ddcb85",
+      "p": []
+    },
+    "sys/sounds/retro.json": {
+      "v": "0.7.0",
+      "h": "ea71e212ec9db99126cc0f07c4971fe8d21c6a8af3592cdceb1a7b10be44595c",
+      "p": []
+    },
+    "sys/startup/example.json": {
+      "v": "0.7.0",
+      "h": "803969b5e951f26f55156bbc889611cd056cc51520fbd4b87cc361276aa9d3fa",
+      "p": []
+    },
     "sys/wallpapers/night.svg": {
       "v": "0.3.0",
       "h": "e3055b85016ce8acce329b8a77bb6497382e0f611a1f824242d1b6b874d15eee",
@@ -252,6 +276,43 @@
       "v": "0.3.2",
       "h": "f853fdd992a9fb12c8d2fb612acfcc35e3f408bbb5dc4579c82e7dfb38ddc568",
       "p": []
+    }
+  },
+  "moved": {
+    "sys/themes/dark.css": {
+      "v": "0.7.0",
+      "to": null,
+      "p": [
+        "0f41aff7eafebf3f0c0c5f0bfecb5b21854a999d8bde456875488aa1f46dbb53"
+      ]
+    },
+    "sys/themes/light.css": {
+      "v": "0.7.0",
+      "to": null,
+      "p": [
+        "6753a692b3a70eee80a05471e14064a83679955514981b91926df35069b1d17a"
+      ]
+    },
+    "sys/themes/round.css": {
+      "v": "0.7.0",
+      "to": null,
+      "p": [
+        "79c71156f4fecba9437fb2bf9476f24021a9f33821bf1c23744d0a1c7c034b36"
+      ]
+    },
+    "sys/docks/bottom.json": {
+      "v": "0.7.0",
+      "to": "sys/panels/bottom.json",
+      "p": [
+        "4e991156145c8b39d1fd68834c0e0e9b46f9f8fb62bfc7be356c2c300dc1b5b7"
+      ]
+    },
+    "sys/docks/left.json": {
+      "v": "0.7.0",
+      "to": "sys/panels/left.json",
+      "p": [
+        "9d27e095b006b782e85cbd8d259c59e023e83ce5122ecbc849f88090195785fc"
+      ]
     }
   }
 }

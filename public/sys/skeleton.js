@@ -11,7 +11,9 @@
 (function () {
   'use strict';
 
-  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/desktops', 'sys/wm', 'sys/window_themes', 'sys/shell_themes', 'sys/cursors', 'sys/animations', 'sys/panels', 'sys/wallpapers', 'sys/fonts', 'sys/keymaps', 'sys/iconsets', 'sys/components', 'usr', 'usr/desktop', 'usr/documents'];
+  const DIRS = ['sys', 'sys/apps', 'sys/boot_loader', 'sys/desktops', 'sys/wm', 'sys/window_themes', 'sys/shell_themes', 'sys/cursors', 'sys/animations', 'sys/panels', 'sys/wallpapers', 'sys/fonts', 'sys/keymaps', 'sys/iconsets', 'sys/components', 'sys/sounds', 'sys/startup', 'usr', 'usr/desktop', 'usr/documents'];
+
+  const SKELETON = new Set(DIRS);
 
   const DEFAULT_SETTINGS = {
     desktopEnv: 'classic',
@@ -27,6 +29,9 @@
     disabledComponents: [],
     keymap: 'default',
     iconset: null,
+    sound: null,           // 効果音のテーマ（sys/sounds/<名前>.json）。null でオフ
+    soundVolume: 60,
+    disabledStartup: [],   // 起動時に開かない sys/startup/ のファイル名
     font: { ui: '', mono: '', size: 14 },
     bootLoader: null,
     fileTypeHandlers: {},
@@ -66,11 +71,16 @@
   //   無い                : コピー（以前入れたのに無い = ユーザーが削除したものは、force のときだけ戻す）
   //   手を加えていない    : 新しい版で上書き
   //   手を加えてある      : 上書きせず「名前.new」として横に置く
+  // サイト側で削除・名前変更された標準ファイルは、defaults.json の moved に書く:
+  //   "moved": { "古いパス": { "v": "0.7.0", "to": "新しいパス か null（削除）", "p": ["過去の版のハッシュ…"] } }
+  //   手を加えていない古いファイルは削除する（新しいパスは、上の files の流れでコピーされる。空になったフォルダも消す）。
+  //   手を加えてあるファイルは、消さずにそのまま残す（out.kept）。
   async function updateDefaults(backend, opts) {
     opts = opts || {};
     const base = opts.base || '';
     const write = opts.write || ((p, b) => backend.writeFile(p, b, { immediate: true }));
     const read = opts.read || ((p) => backend.readFile(p));
+    const remove = opts.remove || ((p) => backend.remove(p));
     const res = await fetch(base + 'sys/defaults.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error('defaults.json を取得できません: ' + res.status);
     const M = await res.json();
@@ -83,7 +93,7 @@
     }
     R.version = R.version || '0.0.0';
     R.files = R.files || {};
-    const out = { version: M.version, copied: [], updated: [], conflicts: [], deleted: [], errors: [] };
+    const out = { version: M.version, copied: [], updated: [], conflicts: [], deleted: [], removed: [], kept: [], errors: [] };
     const get = async (path) => {
       const r = await fetch(base + path, { cache: 'no-cache' });
       if (!r.ok) throw new Error('取得できません: ' + path);
@@ -111,6 +121,28 @@
         } else {                                                    // 手を加えてある
           await write(p + '.new', await get(path));
           out.conflicts.push(path);
+        }
+      } catch (err) {
+        out.errors.push(path + ': ' + ((err && err.message) || err));
+      }
+    }
+    // サイト側で削除・名前変更されたファイルを、手元に反映する
+    for (const [path, m] of Object.entries(M.moved || {})) {
+      if (!/^(sys|usr)\/[\w./-]+$/.test(path) || path.includes('..')) continue;
+      const p = '/' + path;
+      try {
+        if (!have.has(p)) { delete R.files[path]; continue; }                     // もう無い
+        const mine = await sha(await read(p));
+        if (mine === R.files[path] || ((m && m.p) || []).includes(mine)) {        // 手を加えていない
+          await remove(p);
+          have.delete(p);
+          delete R.files[path];
+          out.removed.push(m && m.to ? path + ' -> ' + m.to : path);
+          const dir = p.slice(0, p.lastIndexOf('/'));                             // 空になったフォルダは消す（雛形のフォルダは残す）
+          if (!SKELETON.has(dir.slice(1)) && ![...have].some((x) => x.startsWith(dir + '/'))) { try { await remove(dir); } catch (e) { /* 残っていても困らない */ } }
+        } else {                                                                  // 手を加えてある: 消さない
+          out.kept.push(path);
+          delete R.files[path];
         }
       } catch (err) {
         out.errors.push(path + ': ' + ((err && err.message) || err));

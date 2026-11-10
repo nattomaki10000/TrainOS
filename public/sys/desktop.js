@@ -47,6 +47,9 @@
     const panel = el('div'); panel.id = 'panel'; panel.hidden = true; document.body.appendChild(panel);
     const menu = el('div'); menu.id = 'menu'; menu.hidden = true; document.body.appendChild(menu);
 
+    // 操作に失敗したときの表示（OS 本体用のダイアログ。アプリ用と同じ見た目）
+    const fail = (e) => kernel.ui.alert((e && e.message) || String(e), { title: 'エラー', sound: 'error' });
+
     const wins = [];     // 作成順。タイルのメイン窓は先頭
     const timers = [];
     let serial = 0, z = 1, wm = MIN_WM;
@@ -79,7 +82,11 @@
       raise(w) {
         w.el.style.zIndex = ++z;
         for (const o of wins) o.el.classList.toggle('front', o === w);
-        if (w.instance) D.front = w.instance;
+        if (w.instance) {
+          const changed = D.front !== w.instance;
+          D.front = w.instance;
+          if (changed) kernel.emit('app:focus', { instance: w.instance });
+        }
         if (wm.focus) { try { wm.focus(w, wins, ctx); } catch (e) { console.warn('[desktop] WM focus', e); } }
         D.refreshPanel();
       },
@@ -359,7 +366,7 @@
         const b = el('button', 'ico');
         b.innerHTML = I(icon) + '<span></span>';
         b.lastChild.textContent = name;
-        b.ondblclick = () => open().catch((e) => alert(e.message));
+        b.ondblclick = () => open().catch(fail);
         icons.appendChild(b);
       };
       const sc = (kernel.settings.desktop && kernel.settings.desktop.shortcuts) || [];
@@ -378,7 +385,7 @@
         const i = el('button');
         i.innerHTML = I(a.icon) + '<span></span>';
         i.lastChild.textContent = a.name;
-        i.onclick = () => { menu.hidden = true; kernel.apps.launch(a.id).catch((err) => alert(err.message)); };
+        i.onclick = () => { menu.hidden = true; kernel.apps.launch(a.id).catch(fail); };
         return i;
       }));
       const b = panel.querySelector('[data-launcher]'), r = b && !panel.hidden && b.getBoundingClientRect(), s = menu.style;
@@ -445,7 +452,7 @@
           };
           upd(kernel.backend.pending ? kernel.backend.pending.size : 0, kernel.backend.status);
           kernel.backend.onPending = upd;
-          b.onclick = () => kernel.flush().catch((e) => alert(e.message));
+          b.onclick = () => kernel.flush().catch(fail);
           panel.append(b); continue;
         }
         if (o.type === 'launcher') {
@@ -462,8 +469,8 @@
         b.onclick = () => {
           if (o.app) {
             const run = wins.filter((w) => w.instance && w.instance.appId === o.app).pop();
-            if (run) run.instance.focus(); else kernel.apps.launch(o.app).catch((e) => alert(e.message));
-          } else kernel.openFile(o.path).catch((e) => alert(e.message));
+            if (run) run.instance.focus(); else kernel.apps.launch(o.app).catch(fail);
+          } else kernel.openFile(o.path).catch(fail);
         };
         panel.append(b);
       }

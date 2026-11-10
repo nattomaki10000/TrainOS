@@ -15,6 +15,14 @@ input, select, button { font: inherit; }
 .krow select { flex: 1; min-width: 0; }
 button { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #st { opacity: .7; min-height: 1.2em; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row .grow { flex: 1; min-width: 0; }
+.app { border-top: 1px solid #8884; padding-top: 6px; display: grid; gap: 4px; }
+.app:first-child { border-top: 0; padding-top: 0; }
+.app small, .perm small { opacity: .7; display: block; }
+.perm { display: flex; gap: 8px; align-items: flex-start; }
+.perm.danger b { color: #d44; }
+input[type=range] { flex: 1; min-width: 6em; }
 </style>
 </head>
 <body>
@@ -51,6 +59,21 @@ button { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 <fieldset><legend>起動画面</legend>
   <label><select id="bootLoader"></select></label>
 </fieldset>
+<fieldset><legend>効果音</legend>
+  <label><select id="sound"></select></label>
+  <label>音量 <input id="vol" type="range" min="0" max="100"> <span id="volv"></span></label>
+  <div class="row"><button id="sndtest">ためし聞き</button></div>
+  <div class="note">sys/sounds/ にテーマ（JSON）を置くと、ここに出ます。ブラウザは、ページを操作する前の音を止めることがあります。</div>
+</fieldset>
+<fieldset><legend>起動時に開くアプリ</legend>
+  <div id="startup"></div>
+  <div class="row"><select id="stapp" class="grow"></select><button id="stadd"></button></div>
+  <div class="note">sys/startup/ のファイルです。ファイルを書くと、ほかのアプリや、ファイルも開けます（docs 参照）。次回の起動から有効です。</div>
+</fieldset>
+<fieldset><legend>アプリの権限</legend>
+  <div id="perms"></div>
+  <div class="note">標準アプリは確認なしで使えます。それ以外のアプリは、初めて起動するとき（新しい権限を求めたときも）に確認します。ここで、あとから許可を変えられます。</div>
+</fieldset>
 <fieldset><legend>components（次回の起動から有効）</legend><div id="comp"></div></fieldset>
 <fieldset id="sync" hidden><legend>Google Drive</legend>
   <label>自動保存の間隔 <input id="min" type="number" min="1" max="120" style="width:5em"> 分</label>
@@ -86,11 +109,103 @@ const SEL = [
   ['bootLoader', 'bootLoaders', '内蔵（シンプル）', () => ''],
 ];
 
+/* ---------- 効果音・起動時に開くアプリ・アプリの権限 ---------- */
+function renderSound(s, info) {
+  fill($('sound'), info.sounds, s.sound, 'オフ');
+  const v = s.soundVolume === undefined ? 60 : s.soundVolume;
+  $('vol').value = v;
+  $('volv').textContent = v;
+}
+
+function renderStartup(info) {
+  const box = $('startup');
+  box.replaceChildren();
+  const off = new Set((curSettings.disabledStartup) || []);
+  for (const it of info.startup) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const l = document.createElement('label');
+    l.className = 'grow';
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.checked = !off.has(it.name) && !it.fileOff;
+    c.disabled = it.fileOff; // ファイルの中で "enabled": false のもの
+    c.onchange = () => { c.checked ? off.delete(it.name) : off.add(it.name); set({ disabledStartup: [...off] }); };
+    const t = document.createElement('span');
+    t.textContent = it.name + ' — ' + it.desc + (it.fileOff ? '（ファイルの中で無効）' : '');
+    l.append(c, t);
+    const del = document.createElement('button');
+    del.innerHTML = TrainOS.icon('trash');
+    del.title = '起動時に開くものから外す（ファイルを削除）';
+    del.onclick = async () => {
+      if (!(await TrainOS.ui.confirm('「' + it.name + '」を削除しますか？', { okLabel: '削除', danger: true }))) return;
+      try { await TrainOS.sys.removeStartup(it.name); say('削除しました'); await render(); } catch (e) { say('失敗: ' + e.message); }
+    };
+    row.append(l, del);
+    box.append(row);
+  }
+  if (!info.startup.length) box.textContent = '（なし）';
+  fill($('stapp'), info.apps.map((a) => a.id), '', '（アプリを選ぶ）');
+  for (const o of [...$('stapp').options]) { const a = info.apps.find((x) => x.id === o.value); if (a) o.text = a.name; }
+}
+
+async function renderPerms(info) {
+  const box = $('perms');
+  box.replaceChildren();
+  const list = await TrainOS.sys.getPermissions();
+  for (const a of list) {
+    const d = document.createElement('div');
+    d.className = 'app';
+    const h = document.createElement('div');
+    h.innerHTML = '<b></b> <small></small>';
+    h.firstChild.textContent = a.name;
+    h.lastChild.textContent = a.id + ' / v' + a.version + (a.trusted ? ' / 標準アプリ（確認なし）' : '');
+    d.append(h);
+    if (!a.trusted) {
+      for (const p of a.requested) {
+        const pi = (info.permissionInfo || {})[p] || { label: '不明な権限', desc: '', danger: false };
+        const l = document.createElement('label');
+        l.className = 'perm' + (pi.danger ? ' danger' : '');
+        const c = document.createElement('input');
+        c.type = 'checkbox';
+        c.checked = a.granted.includes(p);
+        const asked = c.checked || a.denied.includes(p);
+        c.onchange = async () => { try { await TrainOS.sys.setAppPermission(a.id, p, c.checked); say('保存しました'); } catch (e) { say('失敗: ' + e.message); await render(); } };
+        const t = document.createElement('span');
+        t.innerHTML = '<b></b><small></small>';
+        t.firstChild.textContent = pi.label + '（' + p + '）' + (asked ? '' : ' — まだ確認していません');
+        t.lastChild.textContent = pi.desc;
+        l.append(c, t);
+        d.append(l);
+      }
+      if (!a.requested.length) { const n = document.createElement('small'); n.textContent = '権限を求めていません'; d.append(n); }
+      else {
+        const b = document.createElement('button');
+        b.textContent = '記録を消す（次の起動で、また確認する）';
+        b.onclick = async () => { try { await TrainOS.sys.resetAppPermissions(a.id); say('消しました'); await render(); } catch (e) { say('失敗: ' + e.message); } };
+        d.append(b);
+      }
+    }
+    box.append(d);
+  }
+}
+
+$('stadd').innerHTML = TrainOS.icon('plus') + ' 追加';
+$('stadd').onclick = async () => {
+  const id = $('stapp').value;
+  if (!id) return say('追加するアプリを選んでください');
+  try { const n = await TrainOS.sys.addStartup(id); say('追加しました（sys/startup/' + n + '）'); await render(); } catch (e) { say('失敗: ' + e.message); }
+};
+$('sound').onchange = () => set({ sound: $('sound').value || null });
+$('vol').oninput = () => { $('volv').textContent = $('vol').value; };
+$('vol').onchange = () => set({ soundVolume: +$('vol').value });
+$('sndtest').onclick = () => TrainOS.sound.play('launch');
+
 /* ---------- ショートカットの編集 ---------- */
 const ACT_LABEL = { closeWindow: 'ウィンドウを閉じる', maximize: '最大化 / 元に戻す', minimize: '最小化', launcher: 'アプリの一覧を開く', nextWindow: '次のウィンドウ', prevWindow: '前のウィンドウ', toMaster: 'メインのウィンドウにする' };
 const enc = (a) => (typeof a === 'string' ? 'act:' + a : a && a.launch ? 'launch:' + a.launch : a && a.open ? 'open:' + a.open : '');
 const dec = (v) => (v.startsWith('act:') ? v.slice(4) : v.startsWith('launch:') ? { launch: v.slice(7) } : { open: v.slice(5) });
-let curKeys = {}, curInfo = null;
+let curKeys = {}, curInfo = null, curSettings = {};
 
 // カーネルの keyCombo と同じ決め方で、キーの組み合わせを文字列にする
 const keyCombo = (e) => {
@@ -191,12 +306,16 @@ const set = async (p) => {
 $('rst').onclick = async () => {
   try {
     const r = await TrainOS.sys.restoreDefaults(true);
-    say(r.copied.length + ' 件コピー、' + r.updated.length + ' 件更新' + (r.conflicts.length ? '、編集済みのため .new を作成: ' + r.conflicts.join(', ') : ''));
+    say(r.copied.length + ' 件コピー、' + r.updated.length + ' 件更新' +
+      (r.removed && r.removed.length ? '、古いファイルを削除: ' + r.removed.join(', ') : '') +
+      (r.kept && r.kept.length ? '、編集済みのため残した: ' + r.kept.join(', ') : '') +
+      (r.conflicts.length ? '、編集済みのため .new を作成: ' + r.conflicts.join(', ') : ''));
   } catch (e) { say('失敗: ' + e.message); }
 };
 
 async function render() {
   const { settings: s, info } = await TrainOS.sys.getSettings();
+  curSettings = s;
 
   for (const [id, list, none, def] of SEL) fill($(id), info[list], s[id] !== undefined ? s[id] : def(s), none);
   fill($('wp'), info.wallpapers, isFile(s.wallpaper) ? s.wallpaper : '', 'なし（色）');
@@ -222,6 +341,9 @@ async function render() {
   if (!info.components.length) $('comp').textContent = '（なし）';
 
   renderKeys(info);
+  renderSound(s, info);
+  renderStartup(info);
+  await renderPerms(info);
 
   if (info.backend === 'drive') { $('sync').hidden = false; $('min').value = s.syncMinutes || 10; }
   $('info').textContent = 'TrainOS ' + info.version + ' / 保存先: ' +

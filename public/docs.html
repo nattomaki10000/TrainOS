@@ -34,6 +34,9 @@ pre code { background: none; padding: 0; }
 │  ├─ iconsets/       アイコンの差し替え（JSON）
 │  ├─ boot_loader/    起動画面（JS）
 │  ├─ components/     起動時に動く JS。ファイルごとにオンオフ
+│  ├─ sounds/         効果音のテーマ（JSON）と音声ファイル
+│  ├─ startup/        起動時に開くアプリ（JSON）
+│  ├─ permissions.json  アプリごとの許可の記録（自動。設定画面で変えられる）
 │  └─ apps/           アプリ。置くだけで使える
 └─ usr/               desktop/ documents/ など</code></pre>
 
@@ -62,11 +65,67 @@ TrainOS.fs.copy(from, to)                // フォルダは中身ごと。コピ
 TrainOS.fs.download(name, data)          // ブラウザのダウンロードとして保存（Blob か文字列。fs.read）
 TrainOS.sys.getSettings() / setSettings(patch) / flush()   // system.settings が必要
 TrainOS.sys.saveKeymap(name, map)                          // sys/keymaps/名前.json に保存して切り替える（system.settings）
+TrainOS.ui.alert(message, opts) / confirm(message, opts) / prompt(message, opts) / choose(message, buttons, opts)   // ダイアログ（権限は不要）
+TrainOS.sound.play(name) // 効果音のテーマにある名前を鳴らす
+TrainOS.sys.getPermissions() / setAppPermission(id, perm, allowed) / resetAppPermissions(id)   // アプリの権限（system.settings）
+TrainOS.sys.addStartup(id) / removeStartup(name)           // 起動時に開くアプリ（system.settings）
 TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
 <ul>
   <li>権限: <code>fs.read</code> <code>fs.write</code> <code>app.launch</code>（<code>openFile</code> 用）、<code>system.settings</code>（設定の読み書き）。<code>app.json</code> で指定すると既定値を置き換える。</li>
   <li>相対パスの <code>script</code> / <code>link</code> / <code>img</code> はアプリフォルダ内だけ解決される。実行時の <code>fetch</code> や <code>import()</code> では同フォルダを読めないので <code>TrainOS.fs</code> を使う。</li>
-  <li><code>alert</code> / <code>prompt</code> / <code>confirm</code> は使えない。</li>
+  <li><code>alert</code> / <code>prompt</code> / <code>confirm</code> のブラウザ標準のものは使えない。代わりに <code>TrainOS.ui</code> を使う（下の「ダイアログ」）。<code>window.alert(…)</code> だけは、同じ見た目のダイアログに置き換わっている（待たずに続く）。</li>
+</ul>
+
+<h3 id="dialogs">ダイアログ（TrainOS.ui）</h3>
+<pre><code>await TrainOS.ui.alert('保存しました')                              // 閉じたら続く
+const ok = await TrainOS.ui.confirm('削除しますか？', { okLabel: '削除', danger: true })   // true / false
+const name = await TrainOS.ui.prompt('名前は？', { value: 'memo', placeholder: '…' })      // 文字列 / キャンセルは null
+const v = await TrainOS.ui.choose('どれにする？', ['A', { label: 'B（既定）', value: 2 }]) // 選んだ値 / Esc は null</code></pre>
+<ul>
+  <li>オプション: <code>title</code>、<code>okLabel</code>、<code>cancelLabel</code>、<code>danger</code>（confirm。赤くして、最初はキャンセルを選ぶ）、<code>multiline</code>（prompt）。<code>choose</code> の値は文字列・数値・真偽値。選択肢は 8 個まで。</li>
+  <li>そのアプリのウィンドウの中だけを覆うので、ほかのウィンドウは使える。出ている間、アプリの中は操作できない。ウィンドウを閉じるとキャンセル扱い。</li>
+  <li>先頭に「アプリ名 からのメッセージ」が必ず出る（アプリが OS のふりをできない）。題名は 100 文字、本文は 4000 文字まで。同時には 1 つずつ、順番に出る。</li>
+  <li>Enter（prompt の入力欄）で決定、Esc でキャンセル、Tab で移動。</li>
+</ul>
+
+<h3 id="perms">権限の確認画面</h3>
+<ul>
+  <li>標準アプリ（インストールしたときのまま、<code>app.json</code> に手を加えていないもの）は、確認なしで使える。</li>
+  <li>それ以外のアプリ（自分で置いたもの、<code>app.json</code> を書き換えた標準アプリ、単体HTML型）は、<b>初めて起動するとき</b>に、求めている権限の一覧が出る。許可するものにチェックを入れて「許可して起動」。チェックを外した権限は、アプリから使えない。「起動しない」か Esc なら、何も記録せず、起動しない。</li>
+  <li>「OS の設定を変える」（<code>system.settings</code>）は、最初はチェックが外れている。<code>fs.write</code> と合わせて、赤く出る。</li>
+  <li>許可と断ったことは <code>sys/permissions.json</code> に残り、次からは聞かない。<code>app.json</code> が新しい権限を求めたときだけ、その分を聞き直す。</li>
+  <li>あとから変えるには、設定画面の「アプリの権限」。変更は、開いているアプリにもすぐ効く。「記録を消す」と、次の起動でまた確認する。</li>
+  <li>許可は、アプリの id に結び付く。許可したあとにアプリの中身を差し替えても、<code>app.json</code> の要求が同じなら、聞き直さない。信用できないファイルは置かない。<code>system.settings</code> を許したアプリは、自分や他のアプリの権限も変えられる。</li>
+</ul>
+
+<h2 id="components">components の API</h2>
+<p><code>sys/components/名前.js</code> は、起動時に名前順で実行される。2つの変数が使える。<code>kernel</code>（OS の機能）と <code>component</code>（この component 用の、イベントとフック。失敗すると、名前を付けて警告が出る）。1つ壊れても、ほかは動く。ファイルごとに設定画面でオフにできる（次の起動から）。壊したときはセーフモード（<code>?mode=safe</code>）。</p>
+<pre><code>component.on('ready', () =&gt; console.log('デスクトップが開いた'));
+component.hook('fs.delete', (ctx) =&gt; { if (ctx.path.startsWith('/usr/documents/keep/')) return false; });
+component.hook('openFile', (ctx) =&gt; { if (ctx.path.endsWith('.log')) ctx.appId = 'notepad'; });</code></pre>
+<h3>イベント（知らせるだけ。戻り値は見ない）</h3>
+<p><code>component.on(名前, fn)</code> / <code>once</code>。<code>kernel.on</code> / <code>once</code> / <code>off</code> も同じ（<code>on</code> の戻り値は解除する関数）。</p>
+<ul>
+  <li><code>ready</code>: デスクトップが開いた（起動画面が消えたあと）。</li>
+  <li><code>fs</code>: <code>(パス, 種類)</code>。種類は <code>write</code> <code>mkdir</code> <code>delete</code>。</li>
+  <li><code>settings</code>: 設定が変わった。<code>apps</code>: アプリの起動・終了・一覧の更新。</li>
+  <li><code>app:launch</code> / <code>app:close</code> / <code>app:focus</code>: <code>({ instance })</code>。<code>instance.appId</code>、<code>title</code>、<code>perms</code> など。</li>
+  <li><code>file:open</code>: <code>({ path, appId })</code>。ファイルを関連付けで開くとき。</li>
+</ul>
+<h3>フック（操作の前に呼ばれる。止める・書き換える）</h3>
+<p><code>component.hook(名前, fn)</code>（<code>kernel.hook</code> も同じ。戻り値は解除する関数）。<code>fn(ctx)</code> は、<b>false を返すと操作を中止</b>する。それ以外（戻り値なし、例外、5 秒を超える待ち）は、そのまま続ける。async でもよい。</p>
+<ul>
+  <li><code>launch</code>: <code>{ appId, openPath }</code>。書き換えると、別のアプリ・別のファイルで起動する。中止すると何も起きない。</li>
+  <li><code>openFile</code>: <code>{ path, appId }</code>。<code>appId</code> を書き換えると、開くアプリを変えられる（関連付けのない拡張子にもできる）。</li>
+  <li><code>fs.write</code>: <code>{ path, size }</code>。<code>fs.delete</code>: <code>{ path }</code>。中止すると、書き込み・削除はエラーになる（アプリからも、OS からも）。</li>
+  <li><code>syscall</code>: <code>{ appId, method, args }</code>。アプリからのシステムコールを、権限の確認のあとに止められる。</li>
+</ul>
+<h3>そのほか components から使えるもの</h3>
+<ul>
+  <li><code>kernel.ui.alert / confirm / prompt / choose</code>: 画面の真ん中のダイアログ（使い方は <code>TrainOS.ui</code> と同じ。第 2 引数に <code>sound: 'error'</code> など）。</li>
+  <li><code>kernel.sound.play(名前)</code>: 効果音。<code>kernel.apiVersion</code>（いまは 1）。</li>
+  <li><code>kernel.settings</code> / <code>kernel.setSettings(patch)</code> / <code>kernel.readFile</code> / <code>writeFile</code> / <code>find</code> / <code>apps.launch</code> / <code>openFile</code> など。</li>
+  <li>フックを付ける component が、止めてはいけないものまで止めると、OS が使いにくくなる。そのときは、セーフモードで起動して、その component を消すかオフにする。</li>
 </ul>
 
 <h2 id="boot">起動画面（ブートローダー）</h2>
@@ -152,7 +211,35 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
   <li><code>sys/boot_loader/</code>: 起動画面。<code>sys/components/</code>: 起動時に動く JS（ファイルごとにオンオフ）。<code>sys/apps/</code>: アプリ。</li>
 </ul>
 <p>セーフモード（<code>?mode=safe</code>）では、これらのカスタマイズはすべて使われず、内蔵の見た目・最小の WM・内蔵のパネルで起動する。壊したときの修復用。</p>
-<p>今後の予定: 効果音、起動時に開くアプリ。</p>
+
+<h2 id="sounds">効果音（sys/sounds/）</h2>
+<p>設定画面の「効果音」で、テーマを選ぶ（既定はオフ）。音量もそこで変える。<code>sys/sounds/名前.json</code> がテーマで、キーがイベント名、値が音。<code>default</code>（やわらかい音）と <code>retro</code>（ピコピコ）が入っている。</p>
+<pre><code>{
+  "launch": [[660, 0.06], [880, 0.09]],
+  "close": "close.wav",
+  "error": [{ "f": 200, "d": 0.2, "t": "square", "g": 0.4 }]
+}</code></pre>
+<ul>
+  <li>音の並び（ファイル不要）: <code>[周波数Hz, 秒]</code> か <code>{ f, d, t（sine / square / triangle / sawtooth）, g（0〜1）, at（開始までの秒）}</code>。<code>at</code> を省くと前の音のあとに続く。16 音まで、全体で 4 秒まで。</li>
+  <li>音声ファイル: <code>sys/sounds/</code> にある wav / mp3 / ogg / m4a / webm / flac（2MB まで）の名前を書く。</li>
+  <li>OS が鳴らすイベント: <code>startup</code>（起動）、<code>launch</code>（アプリを開く）、<code>close</code>（閉じる）、<code>dialog</code>（ダイアログが出る）、<code>error</code>（操作の失敗）、<code>save</code>（Drive に送った）。書いていないイベントは鳴らない。</li>
+  <li>独自の名前も書ける。アプリは <code>TrainOS.sound.play('名前')</code>（権限は不要。1 秒に 8 回まで）、components は <code>kernel.sound.play('名前')</code> で鳴らす。<code>_</code> で始めるキー（<code>_comment</code> など）や、形が不正なものは無視される。</li>
+  <li>ブラウザは、ページを操作する前の音を止めることがある。その場合、起動の音は鳴らず、最初の操作のあとから鳴る。</li>
+  <li>セーフモードでは鳴らさない。<code>sys/sounds/</code> を編集すると、自動で読み直す。</li>
+</ul>
+
+<h2 id="startup">起動時に開くアプリ（sys/startup/）</h2>
+<p>設定画面の「起動時に開くアプリ」で、アプリを選んで追加する。中身は <code>sys/startup/名前.json</code>（名前順に開く）。デスクトップが開いたあとに、順番に開く（権限の確認が出たら、答えるまで次を待つ）。</p>
+<pre><code>{ "app": "terminal" }
+{ "app": "notepad", "openPath": "/usr/documents/memo.txt", "delay": 500 }
+{ "open": "/usr/documents/memo.txt" }
+[ { "app": "explorer" }, { "app": "terminal", "enabled": false } ]</code></pre>
+<ul>
+  <li><code>app</code>（アプリ id、任意の <code>openPath</code>）か、<code>open</code>（関連付けで開くパス）。配列で複数書ける。<code>delay</code> は開く前に待つ ms（10 秒まで）。<code>"enabled": false</code> で無効。</li>
+  <li>設定画面のチェックを外すと、ファイルは残したまま、その名前が <code>settings.json</code> の <code>disabledStartup</code> に入って、開かなくなる。</li>
+  <li>開きすぎて固まらないよう、1 回の起動で 10 個まで。失敗したものは飛ばして、続ける。</li>
+  <li>セーフモードでは、何も開かない。</li>
+</ul>
 
 <h2 id="update">標準ファイルの更新</h2>
 <p>起動時に、サイトの <code>sys/defaults.json</code> と手元の <code>sys/installed.json</code> を見比べ、バージョンが違うときだけ標準アプリ・起動画面を更新する。</p>
@@ -161,6 +248,7 @@ TrainOS.icon(name)       // Font Awesome の SVG 文字列</code></pre>
   <li>手を加えていないファイルは新しい版に置き換える。</li>
   <li>手を加えたファイルは上書きせず、<code>名前.new</code> として新しい版を横に置く。取り込むかどうかは自分で決める。</li>
   <li>自分で削除した標準ファイルは自動では戻さない。戻すときは設定の「標準ファイルを復元・更新」か、ターミナルの <code>restore</code>。</li>
+  <li><b>サイト側で削除・名前変更された標準ファイル</b>（<code>defaults.json</code> の <code>moved</code> に書いてある）は、手を加えていなければ、古いほうを削除する（名前変更の新しいほうは、普通のコピーで入る。空になったフォルダも消す）。手を加えてあるものは、消さずに残す。更新の結果（削除したもの、残したもの）は、設定の「標準ファイルを復元・更新」とターミナルの <code>restore</code> に出る。</li>
 </ul>
 
 <h2 id="storage">保存先</h2>
